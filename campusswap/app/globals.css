@@ -1,105 +1,31 @@
-
 @import "tailwindcss";
 
 :root {
-  /* Core palette */
   --cs-void: #060410;
   --cs-deep: #0d0820;
   --cs-surface: #12102a;
   --cs-panel: #1a1640;
-  --cs-border: rgba(139, 92, 246, 0.15);
-  --cs-border-hover: rgba(139, 92, 246, 0.35);
-  --cs-border-glow: rgba(139, 92, 246, 0.6);
-
-  /* Accent ramp */
   --cs-violet: #7c3aed;
   --cs-violet-light: #8b5cf6;
   --cs-violet-bright: #a78bfa;
-  --cs-violet-glow: rgba(124, 58, 237, 0.3);
-
-  /* Secondary accent */
-  --cs-magenta: #c026d3;
-  --cs-magenta-soft: rgba(192, 38, 211, 0.15);
-
-  /* Text */
-  --cs-text-primary: #f0ecff;
-  --cs-text-secondary: #9b8fc4;
-  --cs-text-muted: #5c527a;
-  --cs-text-accent: #a78bfa;
-
-  /* Status */
-  --cs-success: #10b981;
-  --cs-success-bg: rgba(16, 185, 129, 0.1);
-  --cs-warning: #f59e0b;
-  --cs-warning-bg: rgba(245, 158, 11, 0.1);
-  --cs-danger: #ef4444;
-  --cs-danger-bg: rgba(239, 68, 68, 0.1);
-
-  /* Karma gold */
-  --cs-karma: #fbbf24;
-  --cs-karma-bg: rgba(251, 191, 36, 0.1);
-
-  /* Typography */
-  --font-display: 'Syne', sans-serif;
-  --font-body: 'DM Sans', sans-serif;
-
-  /* Spacing */
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 16px;
-  --radius-xl: 24px;
-
-  /* Shadows */
-  --shadow-glow: 0 0 40px rgba(124, 58, 237, 0.12);
-  --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.4);
-  --shadow-button: 0 2px 12px rgba(124, 58, 237, 0.4);
 }
 
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
+* { box-sizing: border-box; margin: 0; padding: 0; }
 
-html {
-  scroll-behavior: smooth;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
+html { scroll-behavior: smooth; }
 
 body {
   background-color: var(--cs-void);
-  color: var(--cs-text-primary);
-  font-family: var(--font-body);
-  font-size: 15px;
-  line-height: 1.6;
-  min-height: 100vh;
+  /* Usamos la fuente Inter para lectura y Outfit para títulos (configurado en layout.js) */
+  font-family: var(--font-inter), sans-serif; 
 }
 
-/* Scrollbar */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-::-webkit-scrollbar-track {
-  background: var(--cs-deep);
-}
-::-webkit-scrollbar-thumb {
-  background: var(--cs-panel);
-  border-radius: 3px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: var(--cs-violet);
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-outfit), sans-serif;
 }
 
-/* Selection */
-::selection {
-  background: var(--cs-violet-glow);
-  color: var(--cs-text-primary);
-}
-
-/* Focus visible */
-:focus-visible {
-  outline: 2px solid var(--cs-violet-light);
-  outline-offset: 2px;
-}
+/* Custom Scrollbar elegante */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: var(--cs-deep); }
+::-webkit-scrollbar-thumb { background: var(--cs-panel); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--cs-violet); }
