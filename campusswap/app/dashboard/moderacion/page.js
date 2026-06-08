@@ -1,95 +1,336 @@
 'use client'
+import { signOut, useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
-import { useState, useEffect } from "react"
-import { ArrowLeft, ShieldCheck, MapPin, AlertTriangle, Check, X } from "lucide-react"
+import { useEffect, useState } from "react"
+import {
+  LayoutDashboard, Search, UploadCloud,
+  Star, LogOut, Shield, BookOpen, ChevronRight,
+  CheckCircle, XCircle, FileText, AlertTriangle, Clock, ThumbsUp
+} from "lucide-react"
 
-export default function ModeracionPage() {
+// Importamos nuestra Base de Datos Dinámica para el tag del perfil
+import { carrerasDB } from "../../data/database"
+
+/* ─── Mock Data de Archivos en Cuarentena ────────────────── */
+const INITIAL_QUARANTINE_FILES = [
+  { id: 'f1', name: 'Resumen Completo: Normalización y Álgebra Relacional', course: 'Bases de Datos', code: 'ING-312', uploader: 'Diego R.', date: 'Hace 4 horas', size: '2.4 MB', format: 'PDF' },
+  { id: 'f2', name: 'Guía Práctica de Patrones de Diseño Creacionales GoF', course: 'Ingeniería de Software', code: 'ING-420', uploader: 'Catalina M.', date: 'Hace 1 día', size: '1.8 MB', format: 'PDF' },
+  { id: 'f3', name: 'Apuntes de Cátedra: Pipeline y Memoria Caché', course: 'Arquitectura de Computadores', code: 'ING-215', uploader: 'Tomás S.', date: 'Hace 2 días', size: '4.1 MB', format: 'DOCX' },
+];
+
+/* ─── Subcomponente de Tarjeta de Estadísticas ───────────── */
+function StatCard({ icon: Icon, label, value, sub, color }) {
+  return (
+    <div style={{
+      background: 'rgba(26,22,64,0.5)',
+      border: '1px solid rgba(139,92,246,0.12)',
+      borderRadius: '14px',
+      padding: '20px',
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '12px',
+      transition: 'border-color 0.2s',
+      cursor: 'default'
+    }}
+    onMouseEnter={e => e.currentTarget.style.borderColor = 'rgba(139,92,246,0.3)'}
+    onMouseLeave={e => e.currentTarget.style.borderColor = 'rgba(139,92,246,0.12)'}
+    >
+      <div style={{
+        width: '38px', height: '38px',
+        borderRadius: '10px',
+        background: `${color}18`,
+        display: 'flex', alignItems: 'center', justifyContent: 'center'
+      }}>
+        <Icon style={{ width: '18px', height: '18px', color }} />
+      </div>
+      <div>
+        <p style={{ fontSize: '26px', fontWeight: '700', fontFamily: "'Syne', sans-serif", color: '#f0ecff', lineHeight: 1 }}>{value}</p>
+        <p style={{ fontSize: '13px', color: '#9b8fc4', marginTop: '4px' }}>{label}</p>
+        {sub && <p style={{ fontSize: '11px', color: '#5c527a', marginTop: '2px' }}>{sub}</p>}
+      </div>
+    </div>
+  )
+}
+
+/* ─── Subcomponente Barra de Navegación Lateral ──────────── */
+function NavItem({ icon: Icon, label, active, badge, onClick }) {
+  return (
+    <div 
+      onClick={onClick}
+      style={{
+        display: 'flex', alignItems: 'center', gap: '10px',
+        padding: '9px 12px', borderRadius: '10px', cursor: 'pointer',
+        background: active ? 'rgba(124,58,237,0.15)' : 'transparent',
+        border: active ? '1px solid rgba(124,58,237,0.25)' : '1px solid transparent',
+        transition: 'all 0.15s',
+        marginBottom: '2px'
+      }}
+      onMouseEnter={e => { if (!active) e.currentTarget.style.background = 'rgba(139,92,246,0.07)' }}
+      onMouseLeave={e => { if (!active) e.currentTarget.style.background = 'transparent' }}
+    >
+      <Icon style={{ width: '17px', height: '17px', color: active ? '#a78bfa' : '#5c527a', flexShrink: 0 }} />
+      <span style={{ fontSize: '14px', color: active ? '#d4bbff' : '#9b8fc4', fontWeight: active ? '500' : '400', flex: 1 }}>
+        {label}
+      </span>
+      {badge && (
+        <span style={{ fontSize: '10px', fontWeight: '700', padding: '2px 6px', borderRadius: '20px', background: 'rgba(251,191,36,0.15)', color: '#fbbf24', border: '1px solid rgba(251,191,36,0.2)' }}>
+          {badge}
+        </span>
+      )}
+      {active && <ChevronRight style={{ width: '14px', height: '14px', color: '#a78bfa' }} />}
+    </div>
+  )
+}
+
+/* ─── Componente Principal del Panel de Moderación ───────── */
+export default function Moderacion() {
+  const { data: session, status } = useSession()
   const router = useRouter()
-  const [miCarrera, setMiCarrera] = useState("")
+  const [mounted, setMounted] = useState(false)
+  const [userCareer, setUserCareer] = useState(null)
 
-  // Simulamos la Base de Datos global de archivos en cuarentena
-  const [documentosBD, setDocumentosBD] = useState([
-    { id: 1, archivo: "Certamen_1.pdf", ramo: "Ingeniería de Software", carrera: "Ingeniería Civil Informática y Telecomunicaciones", autor: "luis@mail.udp.cl" },
-    { id: 2, archivo: "Guia_Ejercicios.docx", ramo: "Termodinámica", carrera: "Ingeniería Industrial y Obras Civiles", autor: "maria@mail.udp.cl" },
-    { id: 3, archivo: "Resumen_Final.pdf", ramo: "Bases de Datos", carrera: "Ingeniería Civil Informática y Telecomunicaciones", autor: "andres@mail.udp.cl" },
-  ])
+  // ESTADOS DE LA ACCIÓN DE MODERACIÓN
+  const [files, setFiles] = useState(INITIAL_QUARANTINE_FILES)
+  const [karmaGained, setKarmaGained] = useState(0)
+  const [toastMessage, setToastMessage] = useState("")
+  const [toastType, setToastType] = useState("success") // success | error
 
+  useEffect(() => { setMounted(true) }, [])
+
+  // Proteger ruta y cargar carrera
   useEffect(() => {
-    // Obtenemos el "Tag" del usuario
-    const savedCareer = localStorage.getItem("userCareer")
-    if (savedCareer) setMiCarrera(savedCareer)
-  }, [])
+    if (status === "unauthenticated") router.push('/')
+    
+    if (status === "authenticated") {
+      const savedCareerId = localStorage.getItem("userCareerId")
+      if (savedCareerId) {
+        const careerObj = carrerasDB.find(c => c.id === savedCareerId)
+        setUserCareer(careerObj)
+      }
+    }
+  }, [status, router])
 
-  // LÓGICA DE SEGURIDAD: Solo vemos los documentos que coinciden con nuestro Tag de carrera
-  const documentosParaModerar = documentosBD.filter(doc => doc.carrera === miCarrera)
-
-  const manejarResolucion = (id, accion) => {
-    // Eliminamos de cuarentena visualmente
-    setDocumentosBD(documentosBD.filter(doc => doc.id !== id))
-    alert(`Archivo ${accion === 'aprobar' ? 'APROBADO (+10 Karma para ti y el autor)' : 'RECHAZADO'}.`)
+  // LÓGICA DE ACCIONES (INTERACTIVIDAD)
+  const triggerToast = (message, type) => {
+    setToastMessage(message)
+    setToastType(type)
+    setTimeout(() => setToastMessage(""), 4000)
   }
 
-  return (
-    <div className="min-h-screen bg-[#0a0514] p-8">
-      <header className="mb-10 flex items-start justify-between">
-        <div>
-          <button onClick={() => router.push('/dashboard')} className="text-[#8892b0] flex items-center gap-2 mb-4">
-            <ArrowLeft className="w-4 h-4" /> Volver al Dashboard
-          </button>
-          <h1 className="text-4xl font-bold text-[#ccd6f6] flex items-center gap-3">
-            <ShieldCheck className="w-10 h-10 text-[#ff00ff]" /> Panel de Moderación
-          </h1>
-          <p className="text-[#8892b0] mt-2 flex items-center gap-2">
-            <MapPin className="w-4 h-4" /> Facultad de Ingeniería y Ciencias
-          </p>
-          <p className="text-[#bb86fc] mt-1 font-mono text-sm">Tag asignado: {miCarrera}</p>
-        </div>
-        
-        <div className="bg-[#fbbf24]/10 border border-[#fbbf24]/30 px-4 py-2 rounded-xl text-[#fbbf24] flex items-center gap-2 text-sm font-bold">
-          <AlertTriangle className="w-4 h-4" /> {documentosParaModerar.length} Docs en Cuarentena para ti
-        </div>
-      </header>
+  const handleApprove = (id, fileName) => {
+    setFiles(prevFiles => prevFiles.filter(f => f.id !== id))
+    setKarmaGained(prev => prev + 10)
+    triggerToast(`¡Apunte aprobado! Has ganado +10 Karma Points por validar: "${fileName}"`, "success")
+  }
 
-      <div className="bg-[#0d0820] border border-[#2d1b4d] rounded-2xl overflow-hidden">
-        {documentosParaModerar.length === 0 ? (
-          <div className="p-12 text-center text-[#8892b0]">
-            <ShieldCheck className="w-16 h-16 mx-auto mb-4 text-[#2d1b4d]" />
-            <p className="text-xl">No hay documentos pendientes para tu carrera.</p>
-            <p className="text-sm mt-2">¡Todo está al día!</p>
-          </div>
-        ) : (
-          <table className="w-full text-left">
-            <thead className="bg-[#1a0b2e] border-b border-[#2d1b4d]">
-              <tr>
-                <th className="p-4 text-[#8892b0] font-medium">Archivo</th>
-                <th className="p-4 text-[#8892b0] font-medium">Ramo / Tag</th>
-                <th className="p-4 text-[#8892b0] font-medium text-right">Acción</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[#2d1b4d]">
-              {documentosParaModerar.map((doc) => (
-                <tr key={doc.id} className="hover:bg-[#1a0b2e]/50">
-                  <td className="p-4 font-medium text-[#ccd6f6]">{doc.archivo}</td>
-                  <td className="p-4 text-[#8892b0]">
-                    <p className="text-[#ccd6f6]">{doc.ramo}</p>
-                    <p className="text-xs bg-[#2d1b4d] inline-block px-2 py-1 rounded mt-1">{doc.carrera}</p>
-                  </td>
-                  <td className="p-4 text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      <button onClick={() => manejarResolucion(doc.id, 'aprobar')} className="p-2 bg-green-500/10 text-green-400 hover:bg-green-500/20 rounded-lg">
-                        <Check className="w-5 h-5" />
-                      </button>
-                      <button onClick={() => manejarResolucion(doc.id, 'rechazar')} className="p-2 bg-red-500/10 text-red-400 hover:bg-red-500/20 rounded-lg">
-                        <X className="w-5 h-5" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
+  const handleReject = (id, fileName) => {
+    setFiles(prevFiles => prevFiles.filter(f => f.id !== id))
+    triggerToast(`Apunte rechazado correctamente. Gracias por mantener la calidad del material.`, "error")
+  }
+
+  if (status === "loading" || !mounted) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: '#060410' }}>
+        <div style={{ width: '40px', height: '40px', border: '2px solid rgba(139,92,246,0.2)', borderTop: '2px solid #7c3aed', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+        <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
       </div>
+    )
+  }
+
+  if (status === "unauthenticated") return null
+
+  return (
+    <div style={{ display: 'flex', height: '100vh', background: '#060410', overflow: 'hidden', position: 'relative' }}>
+      
+      {/* ── ALERTA FLOTANTE (TOAST NOTIFICATION) ── */}
+      {toastMessage && (
+        <div style={{
+          position: 'fixed', top: '24px', right: '24px', zIndex: 100,
+          background: toastType === 'success' ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)',
+          border: toastType === 'success' ? '1px solid rgba(16,185,129,0.4)' : '1px solid rgba(239,68,68,0.4)',
+          color: toastType === 'success' ? '#34d399' : '#f87171',
+          padding: '16px 24px', borderRadius: '12px', backdropFilter: 'blur(10px)',
+          boxShadow: '0 4px 30px rgba(0,0,0,0.3)', width: '380px', fontSize: '13px',
+          lineHeight: 1.4, animation: 'fadeInRight 0.3s ease'
+        }}>
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
+            {toastType === 'success' ? <CheckCircle style={{ width: '18px', height: '18px', flexShrink: 0 }} /> : <XCircle style={{ width: '18px', height: '18px', flexShrink: 0 }} />}
+            <p>{toastMessage}</p>
+          </div>
+        </div>
+      )}
+
+      {/* ── Sidebar Identico ── */}
+      <aside style={{ width: '240px', flexShrink: 0, borderRight: '1px solid rgba(139,92,246,0.1)', background: 'rgba(13,8,32,0.6)', backdropFilter: 'blur(20px)', display: 'flex', flexDirection: 'column', padding: '24px 16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '32px', paddingLeft: '4px' }}>
+          <div style={{ width: '32px', height: '32px', borderRadius: '9px', background: 'linear-gradient(135deg, #7c3aed, #6d28d9)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <BookOpen style={{ width: '16px', height: '16px', color: 'white' }} />
+          </div>
+          <span style={{ fontFamily: "'Syne', sans-serif", fontSize: '18px', fontWeight: '800', color: '#f0ecff', letterSpacing: '-0.3px' }}>CampusSwap</span>
+        </div>
+
+        <nav style={{ flex: 1 }}>
+          <p style={{ fontSize: '10px', color: '#5c527a', fontWeight: '600', letterSpacing: '1.5px', textTransform: 'uppercase', padding: '0 12px', marginBottom: '8px' }}>Principal</p>
+          <NavItem icon={LayoutDashboard} label="Dashboard" onClick={() => router.push('/dashboard')} />
+          <NavItem icon={Search} label="Explorar" />
+          
+          <p style={{ fontSize: '10px', color: '#5c527a', fontWeight: '600', letterSpacing: '1.5px', textTransform: 'uppercase', padding: '0 12px', margin: '20px 0 8px' }}>Acciones</p>
+          <NavItem icon={UploadCloud} label="Subir Apunte" badge="S2" onClick={() => alert("¡Pronto habilitaremos el flujo de carga real en el Sprint 2!")} />
+          <NavItem icon={Shield} label="Moderar" active badge={files.length.toString()} />
+        </nav>
+
+        <div style={{ borderTop: '1px solid rgba(139,92,246,0.1)', paddingTop: '16px', marginTop: '16px' }}>
+          <div style={{ background: 'rgba(251,191,36,0.06)', border: '1px solid rgba(251,191,36,0.15)', borderRadius: '10px', padding: '10px 12px', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Star style={{ width: '16px', height: '16px', color: '#fbbf24' }} />
+            <div>
+              <p style={{ fontSize: '11px', color: '#9b8fc4' }}>Karma Points</p>
+              <p style={{ fontSize: '18px', fontWeight: '700', color: '#fbbf24', fontFamily: "'Syne', sans-serif", lineHeight: 1 }}>
+                {150 + karmaGained} pts
+              </p>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '4px' }}>
+            <img src={session?.user?.image} alt="Avatar" style={{ width: '36px', height: '36px', borderRadius: '50%', border: '2px solid rgba(124,58,237,0.4)', flexShrink: 0 }} />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p style={{ fontSize: '13px', fontWeight: '600', color: '#f0ecff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{session?.user?.name}</p>
+              <p style={{ fontSize: '10px', color: '#a78bfa', background: 'rgba(124,58,237,0.1)', border: '1px solid rgba(124,58,237,0.2)', padding: '2px 4px', borderRadius: '4px', display: 'inline-block', marginTop: '2px' }}>
+                {userCareer?.tag || 'Configurando'}
+              </p>
+            </div>
+          </div>
+
+          <button onClick={() => signOut()} style={{ width: '100%', display: 'flex', alignItems: 'center', justifycenter: 'center', gap: '6px', marginTop: '12px', padding: '8px', borderRadius: '8px', background: 'transparent', border: '1px solid transparent', cursor: 'pointer', color: '#5c527a', fontSize: '13px' }}>
+            <LogOut style={{ width: '14px', height: '14px' }} /> Cerrar sesión
+          </button>
+        </div>
+      </aside>
+
+      {/* ── Contenido Principal ── */}
+      <main style={{ flex: 1, overflowY: 'auto', padding: '32px 36px' }}>
+        
+        {/* Header */}
+        <div style={{ marginBottom: '32px' }}>
+          <p style={{ fontSize: '13px', color: '#5c527a', marginBottom: '4px', fontWeight: '300' }}>Control de Calidad Académica</p>
+          <h1 style={{ fontFamily: "'Syne', sans-serif", fontSize: '28px', fontWeight: '800', color: '#f0ecff', letterSpacing: '-0.5px', lineHeight: 1 }}>
+            Panel de Moderación 
+          </h1>
+          <p style={{ color: '#8892b0', fontSize: '14px', marginTop: '8px', maxWidth: '700px', lineHeight: 1.5 }}>
+            Revisa los apuntes en cuarentena subidos por tus compañeros de la UDP. Valida que correspondan al ramo y no infrinjan normas para ganar <span style={{ color: '#fbbf24', fontWeight: 'bold' }}>+10 Karma Points</span> por archivo.
+          </p>
+        </div>
+
+        {/* Indicadores clave */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '14px', marginBottom: '32px' }}>
+          <StatCard icon={AlertTriangle} label="Documentos en espera" value={files.length.toString()} color="#f59e0b" />
+          <StatCard icon={Star} label="Karma ganado hoy" value={`+${karmaGained}`} sub="Sumado a tu perfil" color="#fbbf24" />
+          <StatCard icon={Shield} label="Tu nivel de Auditor" value="Rango Bronce" sub="Próximo rango a los 200 pts" color="#10b981" />
+        </div>
+
+        {/* Contenedor de la Tabla/Lista de Cuarentena */}
+        <div style={{
+          background: 'rgba(26,22,64,0.3)',
+          border: '1px solid rgba(139,92,246,0.12)',
+          borderRadius: '16px',
+          padding: '24px',
+          boxShadow: '0 4px 30px rgba(0,0,0,0.2)'
+        }}>
+          <h2 style={{ fontFamily: "'Syne', sans-serif", fontSize: '18px', fontWeight: '700', color: '#f0ecff', marginBottom: '20px' }}>
+            Cola de Revisión de Material
+          </h2>
+
+          {files.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '48px 24px', border: '1px dashed rgba(139,92,246,0.2)', borderRadius: '12px' }}>
+              <ThumbsUp style={{ width: '42px', height: '42px', color: '#10b981', margin: '0 auto 16px' }} />
+              <p style={{ color: '#f0ecff', fontWeight: 'bold', fontSize: '16px' }}>¡Excelente trabajo!</p>
+              <p style={{ color: '#8892b0', fontSize: '13px', marginTop: '4px' }}>No quedan archivos pendientes de moderación en tu malla por ahora.</p>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              {files.map(file => (
+                <div 
+                  key={file.id}
+                  style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    background: 'rgba(18,16,42,0.6)', border: '1px solid rgba(139,92,246,0.08)',
+                    borderRadius: '12px', padding: '16px 20px', transition: 'all 0.2s'
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.borderColor = 'rgba(245,158,11,0.3)'}
+                  onMouseLeave={e => e.currentTarget.style.borderColor = 'rgba(139,92,246,0.08)'}
+                >
+                  {/* Información Izquierda del archivo */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '16px', minWidth: 0, flex: 1 }}>
+                    <div style={{
+                      width: '40px', height: '40px', borderRadius: '8px',
+                      background: 'rgba(245,158,11,0.1)', display: 'flex',
+                      alignItems: 'center', justifyContent: 'center', flexShrink: 0
+                    }}>
+                      <FileText style={{ width: '18px', height: '18px', color: '#f59e0b' }} />
+                    </div>
+                    <div style={{ minWidth: 0 }}>
+                      <h4 style={{ color: '#f0ecff', fontWeight: '600', fontSize: '14px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={file.name}>
+                        {file.name}
+                      </h4>
+                      <p style={{ color: '#5c527a', fontSize: '12px', marginTop: '4px' }}>
+                        <span style={{ color: '#a78bfa', fontWeight: '500' }}>{file.course} ({file.code})</span> · Subido por {file.uploader}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Metadatos del centro */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '24px', margin: '0 24px', flexShrink: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <Clock style={{ width: '13px', height: '13px', color: '#5c527a' }} />
+                      <span style={{ fontSize: '12px', color: '#5c527a' }}>{file.date}</span>
+                    </div>
+                    <span style={{ fontSize: '11px', background: 'rgba(255,255,255,0.05)', color: '#8892b0', padding: '3px 8px', borderRadius: '6px', fontWeight: 'bold' }}>
+                      {file.format} · {file.size}
+                    </span>
+                  </div>
+
+                  {/* Botones de acción Interactivos (Derecha) */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
+                    <button 
+                      onClick={() => handleReject(file.id, file.name)}
+                      style={{
+                        background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)',
+                        color: '#f87171', padding: '8px 14px', borderRadius: '8px', fontSize: '13px',
+                        fontWeight: '500', cursor: 'pointer', transition: 'all 0.15s'
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.background = 'rgba(239,68,68,0.2)'}
+                      onMouseLeave={e => e.currentTarget.style.background = 'rgba(239,68,68,0.1)'}
+                    >
+                      Rechazar
+                    </button>
+                    <button 
+                      onClick={() => handleApprove(file.id, file.name)}
+                      style={{
+                        background: 'linear-gradient(135deg, #10b981, #059669)', border: 'none',
+                        color: 'white', padding: '8px 14px', borderRadius: '8px', fontSize: '13px',
+                        fontWeight: '600', cursor: 'pointer', transition: 'all 0.15s',
+                        boxShadow: '0 2px 10px rgba(16,185,129,0.2)'
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-1px)'}
+                      onMouseLeave={e => e.currentTarget.style.transform = 'translateY(0)'}
+                    >
+                      Aprobar ✓
+                    </button>
+                  </div>
+
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </main>
+
+      <style>{`
+        @keyframes fadeInRight {
+          from { opacity: 0; transform: translateX(20px); }
+          to { opacity: 1; transform: translateX(0); }
+        }
+        * { box-sizing: border-box; }
+      `}</style>
     </div>
   )
 }

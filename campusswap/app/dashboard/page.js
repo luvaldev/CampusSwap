@@ -1,19 +1,151 @@
 'use client'
 import { signOut, useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
-import { useState, useEffect } from "react"
-import { FolderGit2, LogOut, ShieldAlert, Archive, BookOpen, PlusCircle, Clock, GraduationCap } from "lucide-react"
+import { useEffect, useState } from "react"
+import {
+  LayoutDashboard, FolderOpen, Search, UploadCloud,
+  Star, LogOut, Bell, ChevronRight, FileText,
+  Users, TrendingUp, Shield, BookOpen, Clock,
+  CheckCircle, AlertCircle, PlusCircle, Archive, GraduationCap
+} from "lucide-react"
 
 // Importamos nuestra Base de Datos Dinámica
 import { carrerasDB, cursosDB } from "../data/database"
 
+/* ─── Sub-components ─────────────────────────────── */
+
+function StatCard({ icon: Icon, label, value, sub, color }) {
+  return (
+    <div style={{
+      background: 'rgba(26,22,64,0.5)',
+      border: '1px solid rgba(139,92,246,0.12)',
+      borderRadius: '14px',
+      padding: '20px',
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '12px',
+      transition: 'border-color 0.2s',
+      cursor: 'default'
+    }}
+    onMouseEnter={e => e.currentTarget.style.borderColor = 'rgba(139,92,246,0.3)'}
+    onMouseLeave={e => e.currentTarget.style.borderColor = 'rgba(139,92,246,0.12)'}
+    >
+      <div style={{
+        width: '38px', height: '38px',
+        borderRadius: '10px',
+        background: `${color}18`,
+        display: 'flex', alignItems: 'center', justifyContent: 'center'
+      }}>
+        <Icon style={{ width: '18px', height: '18px', color }} />
+      </div>
+      <div>
+        <p style={{ fontSize: '26px', fontWeight: '700', fontFamily: "'Syne', sans-serif", color: '#f0ecff', lineHeight: 1 }}>{value}</p>
+        <p style={{ fontSize: '13px', color: '#9b8fc4', marginTop: '4px' }}>{label}</p>
+        {sub && <p style={{ fontSize: '11px', color: '#5c527a', marginTop: '2px' }}>{sub}</p>}
+      </div>
+    </div>
+  )
+}
+
+function SubjectCard({ curso, router, onToggleEstado }) {
+  // Asignamos un color en base a un hash simple del ID para que luzca colorido como en el diseño
+  const colors = [
+    { c: '#7c3aed', bg: 'rgba(124,58,237,0.12)' },
+    { c: '#0891b2', bg: 'rgba(8,145,178,0.12)' },
+    { c: '#059669', bg: 'rgba(5,150,105,0.12)' },
+    { c: '#d97706', bg: 'rgba(217,119,6,0.12)' }
+  ];
+  const colorTheme = colors[curso.id.length % colors.length];
+
+  return (
+    <div 
+      onClick={() => router.push(`/dashboard/curso/${curso.id}`)}
+      style={{
+        background: 'rgba(26,22,64,0.5)',
+        border: '1px solid rgba(139,92,246,0.12)',
+        borderRadius: '16px',
+        padding: '22px',
+        cursor: 'pointer',
+        transition: 'all 0.2s ease',
+        position: 'relative',
+        overflow: 'hidden'
+      }}
+      onMouseEnter={e => {
+        e.currentTarget.style.borderColor = colorTheme.c + '55'
+        e.currentTarget.style.transform = 'translateY(-2px)'
+        e.currentTarget.style.boxShadow = `0 8px 30px ${colorTheme.c}18`
+      }}
+      onMouseLeave={e => {
+        e.currentTarget.style.borderColor = 'rgba(139,92,246,0.12)'
+        e.currentTarget.style.transform = 'translateY(0)'
+        e.currentTarget.style.boxShadow = 'none'
+      }}
+    >
+      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '3px', background: colorTheme.c, borderRadius: '16px 16px 0 0' }} />
+
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '16px' }}>
+        <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: colorTheme.bg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <BookOpen style={{ width: '20px', height: '20px', color: colorTheme.c }} />
+        </div>
+        <button 
+          onClick={(e) => { e.stopPropagation(); onToggleEstado(curso.id); }}
+          style={{ background: 'rgba(239,68,68,0.1)', border: 'none', cursor: 'pointer', color: '#f87171', padding: '6px 10px', borderRadius: '6px', fontSize: '11px', fontWeight: 'bold' }}
+        >
+          <Archive style={{ width: '14px', height: '14px' }} />
+        </button>
+      </div>
+
+      <div style={{ marginBottom: '16px' }}>
+        <p style={{ fontSize: '10px', color: colorTheme.c, fontWeight: '600', letterSpacing: '1px', textTransform: 'uppercase', marginBottom: '4px' }}>
+          {curso.id.toUpperCase()}
+        </p>
+        <h3 style={{ fontSize: '16px', fontWeight: '600', fontFamily: "'Syne', sans-serif", color: '#f0ecff', lineHeight: 1.3, marginBottom: '4px' }}>
+          {curso.nombre}
+        </h3>
+        <p style={{ fontSize: '12px', color: '#5c527a' }}>{curso.creditos} Créditos</p>
+      </div>
+    </div>
+  )
+}
+
+function NavItem({ icon: Icon, label, active, badge, onClick }) {
+  return (
+    <div 
+      onClick={onClick}
+      style={{
+        display: 'flex', alignItems: 'center', gap: '10px',
+        padding: '9px 12px', borderRadius: '10px', cursor: 'pointer',
+        background: active ? 'rgba(124,58,237,0.15)' : 'transparent',
+        border: active ? '1px solid rgba(124,58,237,0.25)' : '1px solid transparent',
+        transition: 'all 0.15s',
+        marginBottom: '2px'
+      }}
+      onMouseEnter={e => { if (!active) e.currentTarget.style.background = 'rgba(139,92,246,0.07)' }}
+      onMouseLeave={e => { if (!active) e.currentTarget.style.background = 'transparent' }}
+    >
+      <Icon style={{ width: '17px', height: '17px', color: active ? '#a78bfa' : '#5c527a', flexShrink: 0 }} />
+      <span style={{ fontSize: '14px', color: active ? '#d4bbff' : '#9b8fc4', fontWeight: active ? '500' : '400', flex: 1 }}>
+        {label}
+      </span>
+      {badge && (
+        <span style={{ fontSize: '10px', fontWeight: '700', padding: '2px 6px', borderRadius: '20px', background: 'rgba(251,191,36,0.15)', color: '#fbbf24', border: '1px solid rgba(251,191,36,0.2)' }}>
+          {badge}
+        </span>
+      )}
+      {active && <ChevronRight style={{ width: '14px', height: '14px', color: '#a78bfa' }} />}
+    </div>
+  )
+}
+
+/* ─── Main Dashboard ─────────────────────────────── */
 export default function Dashboard() {
   const { data: session, status } = useSession()
   const router = useRouter()
-  
+  const [mounted, setMounted] = useState(false)
+
   // ESTADOS DEL USUARIO
   const [userCareer, setUserCareer] = useState(null)
-  const [misRamos, setMisRamos] = useState([]) // Array de IDs y estados: [{ id: 'isw', estado: 'actual' }]
+  const [misRamos, setMisRamos] = useState([]) 
   
   // ESTADOS DE LA UI
   const [showOnboarding, setShowOnboarding] = useState(false)
@@ -21,24 +153,26 @@ export default function Dashboard() {
   const [cooldownError, setCooldownError] = useState("")
   const [showAddModal, setShowAddModal] = useState(false)
 
-  // 1. CARGA INICIAL DE DATOS
+  useEffect(() => { setMounted(true) }, [])
+
+  // CARGA INICIAL
   useEffect(() => {
     if (status === "unauthenticated") router.push('/')
     
-    // Leer del almacenamiento local (Simulando petición a API)
-    const savedCareerId = localStorage.getItem("userCareerId")
-    const savedRamos = JSON.parse(localStorage.getItem("userRamos")) || []
-    
-    if (savedCareerId) {
-      const careerObj = carrerasDB.find(c => c.id === savedCareerId)
-      setUserCareer(careerObj)
-      setMisRamos(savedRamos)
-    } else {
-      setShowOnboarding(true)
+    if (status === "authenticated") {
+      const savedCareerId = localStorage.getItem("userCareerId")
+      const savedRamos = JSON.parse(localStorage.getItem("userRamos")) || []
+      
+      if (savedCareerId) {
+        const careerObj = carrerasDB.find(c => c.id === savedCareerId)
+        setUserCareer(careerObj)
+        setMisRamos(savedRamos)
+      } else {
+        setShowOnboarding(true)
+      }
     }
   }, [status, router])
 
-  // 2. LÓGICA DEL CUESTIONARIO (ONBOARDING)
   const handleSaveCareer = () => {
     if (!selectedCareerId) return
 
@@ -55,7 +189,6 @@ export default function Dashboard() {
     const careerObj = carrerasDB.find(c => c.id === selectedCareerId)
     localStorage.setItem("userCareerId", selectedCareerId)
     localStorage.setItem("careerLastChanged", now.toString())
-    // Si cambia de carrera, reiniciamos sus ramos
     localStorage.setItem("userRamos", JSON.stringify([])) 
     
     setUserCareer(careerObj)
@@ -64,7 +197,6 @@ export default function Dashboard() {
     setCooldownError("")
   }
 
-  // 3. LÓGICA DE GESTIÓN DE RAMOS
   const agregarRamo = (cursoId) => {
     const nuevosRamos = [...misRamos, { id: cursoId, estado: 'actual' }]
     setMisRamos(nuevosRamos)
@@ -83,35 +215,43 @@ export default function Dashboard() {
     localStorage.setItem("userRamos", JSON.stringify(nuevosRamos))
   }
 
-  // 4. PREPARACIÓN DE DATOS PARA LA VISTA
-  // Rehidratamos los IDs guardados con la información real de la base de datos
   const ramosCompletos = misRamos.map(mr => {
     const cursoData = cursosDB.find(c => c.id === mr.id)
     return { ...cursoData, estado: mr.estado }
-  }).filter(c => c !== undefined)
+  }).filter(c => c.nombre !== undefined)
 
   const cursosActuales = ramosCompletos.filter(c => c.estado === 'actual')
   const cursosArchivados = ramosCompletos.filter(c => c.estado === 'archivado')
 
-  // Filtramos los cursos que el usuario puede agregar (Que sean de su carrera y no los tenga ya)
   const cursosDisponibles = userCareer 
     ? cursosDB.filter(c => c.carreras.includes(userCareer.id) && !misRamos.some(mr => mr.id === c.id))
     : []
 
-  if (status === "loading") return <div className="min-h-screen bg-[#0a0514] flex items-center justify-center"><div className="animate-spin h-12 w-12 border-b-2 border-[#bb86fc] rounded-full"></div></div>
+  if (status === "loading" || !mounted) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: '#060410' }}>
+        <div style={{ width: '40px', height: '40px', border: '2px solid rgba(139,92,246,0.2)', borderTop: '2px solid #7c3aed', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+        <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+      </div>
+    )
+  }
+
+  if (status === "unauthenticated") return null
+
+  const firstName = session?.user?.name?.split(' ')[0] || 'Estudiante'
 
   return (
-    <div className="flex h-screen bg-[#0a0514]">
-      
-      {/* --- MODAL DE ONBOARDING --- */}
+    <div style={{ display: 'flex', height: '100vh', background: '#060410', overflow: 'hidden' }}>
+
+      {/* --- MODAL ONBOARDING --- */}
       {showOnboarding && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
-          <div className="bg-[#1a0b2e] border border-[#bb86fc]/30 p-8 rounded-2xl max-w-lg w-full">
-            <h2 className="text-3xl font-bold text-[#bb86fc] mb-4">Bienvenido a CampusSwap</h2>
-            <p className="text-[#8892b0] mb-6">Para personalizar tu catálogo de ramos, selecciona tu carrera. <strong className="text-yellow-400">Atención: Solo podrás hacer un cambio cada 2 meses.</strong></p>
+        <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(4px)' }}>
+          <div style={{ background: 'linear-gradient(135deg, rgba(26,22,64,0.95) 0%, rgba(18,16,42,0.98) 100%)', border: '1px solid rgba(139,92,246,0.3)', padding: '32px', borderRadius: '20px', width: '100%', maxWidth: '500px', boxShadow: '0 4px 60px rgba(0,0,0,0.5)' }}>
+            <h2 style={{ fontSize: '24px', fontWeight: 'bold', color: '#bb86fc', marginBottom: '16px', fontFamily: "'Syne', sans-serif" }}>Bienvenido a CampusSwap</h2>
+            <p style={{ color: '#8892b0', marginBottom: '24px', fontSize: '14px', lineHeight: 1.5 }}>Para personalizar tu catálogo de ramos, selecciona tu carrera. <strong style={{ color: '#fbbf24' }}>Atención: Solo podrás hacer un cambio cada 2 meses.</strong></p>
             
             <select 
-              className="w-full bg-[#0a0514] border border-[#2d1b4d] text-[#ccd6f6] rounded-lg p-3 mb-4 focus:outline-none focus:border-[#bb86fc]"
+              style={{ width: '100%', background: '#060410', border: '1px solid rgba(139,92,246,0.3)', color: '#f0ecff', borderRadius: '10px', padding: '12px', marginBottom: '16px', outline: 'none' }}
               value={selectedCareerId}
               onChange={(e) => setSelectedCareerId(e.target.value)}
             >
@@ -121,36 +261,36 @@ export default function Dashboard() {
               ))}
             </select>
 
-            {cooldownError && <p className="text-red-400 text-sm mb-4 bg-red-400/10 p-3 rounded-lg border border-red-400/30">{cooldownError}</p>}
+            {cooldownError && <p style={{ color: '#fca5a5', fontSize: '13px', marginBottom: '16px', background: 'rgba(239,68,68,0.1)', padding: '10px', borderRadius: '8px', border: '1px solid rgba(239,68,68,0.3)' }}>{cooldownError}</p>}
 
-            <button onClick={handleSaveCareer} className="w-full bg-[#bb86fc] hover:bg-[#a364ff] text-[#0a0514] font-bold py-3 rounded-lg transition-all">
+            <button onClick={handleSaveCareer} style={{ width: '100%', background: 'linear-gradient(135deg, #7c3aed, #6d28d9)', color: '#fff', fontWeight: 'bold', padding: '12px', borderRadius: '10px', border: 'none', cursor: 'pointer' }}>
               Guardar y Continuar
             </button>
           </div>
         </div>
       )}
 
-      {/* --- MODAL PARA AÑADIR RAMOS --- */}
+      {/* --- MODAL ADD RAMO --- */}
       {showAddModal && (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/80 backdrop-blur-sm">
-          <div className="bg-[#1a0b2e] border border-[#2d1b4d] p-8 rounded-2xl max-w-2xl w-full max-h-[80vh] flex flex-col">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-bold text-[#ccd6f6]">Añadir Ramo a mi Catálogo</h2>
-              <button onClick={() => setShowAddModal(false)} className="text-[#8892b0] hover:text-white">✕</button>
+        <div style={{ position: 'fixed', inset: 0, zIndex: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(4px)' }}>
+          <div style={{ background: 'rgba(18,16,42,0.98)', border: '1px solid rgba(139,92,246,0.2)', padding: '32px', borderRadius: '20px', width: '100%', maxWidth: '600px', maxHeight: '80vh', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+              <h2 style={{ fontSize: '20px', fontWeight: 'bold', color: '#f0ecff', fontFamily: "'Syne', sans-serif" }}>Añadir Ramo a mi Catálogo</h2>
+              <button onClick={() => setShowAddModal(false)} style={{ background: 'transparent', border: 'none', color: '#8892b0', cursor: 'pointer', fontSize: '20px' }}>✕</button>
             </div>
             
-            <div className="overflow-y-auto space-y-3 flex-1 pr-2">
+            <div style={{ overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '12px', paddingRight: '8px' }}>
               {cursosDisponibles.length === 0 ? (
-                <p className="text-center text-[#8892b0] py-8">Ya tienes todos los ramos de tu malla inscritos o no hay ramos disponibles.</p>
+                <p style={{ textAlign: 'center', color: '#5c527a', padding: '32px 0' }}>Ya tienes todos los ramos de tu malla inscritos.</p>
               ) : (
                 cursosDisponibles.map(curso => (
-                  <div key={curso.id} className="flex items-center justify-between bg-[#0a0514] border border-[#2d1b4d] p-4 rounded-xl hover:border-[#bb86fc]/50 transition-colors">
+                  <div key={curso.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(26,22,64,0.5)', border: '1px solid rgba(139,92,246,0.1)', padding: '16px', borderRadius: '12px' }}>
                     <div>
-                      <h4 className="text-[#ccd6f6] font-bold">{curso.nombre}</h4>
-                      <p className="text-[#8892b0] text-sm">{curso.creditos} Créditos Académicos</p>
+                      <h4 style={{ color: '#f0ecff', fontWeight: 'bold', fontSize: '15px' }}>{curso.nombre}</h4>
+                      <p style={{ color: '#8892b0', fontSize: '12px', marginTop: '4px' }}>{curso.creditos} Créditos Académicos</p>
                     </div>
-                    <button onClick={() => agregarRamo(curso.id)} className="flex items-center gap-2 bg-[#bb86fc]/10 text-[#bb86fc] px-4 py-2 rounded-lg hover:bg-[#bb86fc]/20 transition-colors border border-[#bb86fc]/30">
-                      <PlusCircle className="w-4 h-4" /> Inscribir
+                    <button onClick={() => agregarRamo(curso.id)} style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(124,58,237,0.15)', color: '#a78bfa', padding: '8px 16px', borderRadius: '8px', border: '1px solid rgba(124,58,237,0.3)', cursor: 'pointer', fontSize: '13px' }}>
+                      <PlusCircle style={{ width: '14px', height: '14px' }} /> Inscribir
                     </button>
                   </div>
                 ))
@@ -160,110 +300,121 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* --- SIDEBAR --- */}
-      <aside className="w-64 border-r border-[#2d1b4d] bg-[#0d0820] flex flex-col">
-        <div className="p-6">
-          <h2 className="text-2xl font-bold text-[#bb86fc]">CampusSwap</h2>
-          <p className="text-xs text-[#8892b0] mt-1 truncate" title={userCareer?.nombre}>{userCareer?.nombre || 'Configurando...'}</p>
+      {/* ── Sidebar ── */}
+      <aside style={{ width: '240px', flexShrink: 0, borderRight: '1px solid rgba(139,92,246,0.1)', background: 'rgba(13,8,32,0.6)', backdropFilter: 'blur(20px)', display: 'flex', flexDirection: 'column', padding: '24px 16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '32px', paddingLeft: '4px' }}>
+          <div style={{ width: '32px', height: '32px', borderRadius: '9px', background: 'linear-gradient(135deg, #7c3aed, #6d28d9)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <BookOpen style={{ width: '16px', height: '16px', color: 'white' }} />
+          </div>
+          <span style={{ fontFamily: "'Syne', sans-serif", fontSize: '18px', fontWeight: '800', color: '#f0ecff', letterSpacing: '-0.3px' }}>CampusSwap</span>
         </div>
-        
-        <nav className="flex-1 px-4 space-y-2">
-          <button className="w-full flex items-center gap-3 text-[#ccd6f6] bg-[#2d1b4d]/50 border border-[#bb86fc]/30 p-3 rounded-xl transition-all">
-            <BookOpen className="w-5 h-5 text-[#bb86fc]" /> Mis Ramos
-          </button>
-          <button className="w-full flex items-center gap-3 text-[#8892b0] hover:text-[#bb86fc] hover:bg-[#2d1b4d]/30 p-3 rounded-xl transition-all" onClick={() => router.push('/dashboard/moderacion')}>
-            <ShieldAlert className="w-5 h-5" /> Moderación
-          </button>
+
+        <nav style={{ flex: 1 }}>
+          <p style={{ fontSize: '10px', color: '#5c527a', fontWeight: '600', letterSpacing: '1.5px', textTransform: 'uppercase', padding: '0 12px', marginBottom: '8px' }}>Principal</p>
+          <NavItem icon={LayoutDashboard} label="Dashboard" active />
+          <NavItem icon={Search} label="Explorar" onClick={() => router.push('/dashboard/explorar')} />
+          
+          <p style={{ fontSize: '10px', color: '#5c527a', fontWeight: '600', letterSpacing: '1.5px', textTransform: 'uppercase', padding: '0 12px', margin: '20px 0 8px' }}>Acciones</p>
+          <NavItem icon={UploadCloud} label="Subir Apunte" badge="S2" onClick={() => router.push('/dashboard/subir')} />
+          <NavItem icon={Shield} label="Moderar" badge="3" onClick={() => router.push('/dashboard/moderacion')} />
         </nav>
 
-        <div className="p-4 border-t border-[#2d1b4d]">
-          {/* TAG DE CARRERA EN PERFIL */}
-          <div className="flex items-center gap-3 mb-4 px-2">
-            <img src={session?.user?.image} alt="Perfil" className="w-10 h-10 rounded-full border border-[#bb86fc]" />
-            <div className="overflow-hidden">
-              <div className="flex items-center gap-2">
-                <p className="text-sm font-bold text-[#ccd6f6] truncate">{session?.user?.name?.split(' ')[0]}</p>
-                {userCareer && (
-                  <span className="bg-[#bb86fc]/10 text-[#bb86fc] text-[10px] font-bold px-2 py-0.5 rounded-md border border-[#bb86fc]/30">
-                    {userCareer.tag}
-                  </span>
-                )}
-              </div>
-              <p className="text-xs text-[#fbbf24] mt-0.5">150 Karma</p>
+        <div style={{ borderTop: '1px solid rgba(139,92,246,0.1)', paddingTop: '16px', marginTop: '16px' }}>
+          <div style={{ background: 'rgba(251,191,36,0.06)', border: '1px solid rgba(251,191,36,0.15)', borderRadius: '10px', padding: '10px 12px', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Star style={{ width: '16px', height: '16px', color: '#fbbf24' }} />
+            <div>
+              <p style={{ fontSize: '11px', color: '#9b8fc4' }}>Karma Points</p>
+              <p style={{ fontSize: '18px', fontWeight: '700', color: '#fbbf24', fontFamily: "'Syne', sans-serif", lineHeight: 1 }}>150 pts</p>
             </div>
           </div>
-          <button onClick={() => signOut()} className="w-full flex items-center justify-center gap-2 text-sm text-red-400 hover:bg-red-400/10 p-2 rounded-lg transition-colors">
-            <LogOut className="w-4 h-4" /> Cerrar Sesión
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '4px' }}>
+            <img src={session?.user?.image} alt="Avatar" style={{ width: '36px', height: '36px', borderRadius: '50%', border: '2px solid rgba(124,58,237,0.4)', flexShrink: 0 }} />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p style={{ fontSize: '13px', fontWeight: '600', color: '#f0ecff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{session?.user?.name}</p>
+              <p style={{ fontSize: '10px', color: '#a78bfa', background: 'rgba(124,58,237,0.1)', border: '1px solid rgba(124,58,237,0.2)', padding: '2px 4px', borderRadius: '4px', display: 'inline-block', marginTop: '2px' }}>
+                {userCareer?.tag || 'Configurando'}
+              </p>
+            </div>
+          </div>
+
+          <button onClick={() => signOut()} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', marginTop: '12px', padding: '8px', borderRadius: '8px', background: 'transparent', border: '1px solid transparent', cursor: 'pointer', color: '#5c527a', fontSize: '13px' }}>
+            <LogOut style={{ width: '14px', height: '14px' }} /> Cerrar sesión
           </button>
         </div>
       </aside>
 
-      {/* --- MAIN CONTENT --- */}
-      <main className="flex-1 p-8 overflow-y-auto">
-        <header className="mb-10 flex justify-between items-end">
+      {/* ── Main content ── */}
+      <main style={{ flex: 1, overflowY: 'auto', padding: '32px 36px' }}>
+
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '32px' }}>
           <div>
-            <h1 className="text-4xl font-bold text-[#ccd6f6]">Catálogo de Estudio</h1>
-            <p className="text-[#8892b0] mt-2">Gestiona los ramos de tu semestre o archiva los ya aprobados.</p>
+            <p style={{ fontSize: '13px', color: '#5c527a', marginBottom: '4px', fontWeight: '300' }}>Bienvenido de vuelta</p>
+            <h1 style={{ fontFamily: "'Syne', sans-serif", fontSize: '30px', fontWeight: '800', color: '#f0ecff', letterSpacing: '-0.5px', lineHeight: 1 }}>{firstName} <p style={{ fontSize: '20px', color: '#a78bfa', background: 'rgba(124,58,237,0.1)', border: '1px solid rgba(124,58,237,0.2)', padding: '2px 4px', borderRadius: '4px', display: 'inline-block', marginTop: '2px' }}>
+                {userCareer?.tag || 'Configurando'}
+              </p>
+            </h1>
           </div>
-          <button onClick={() => setShowAddModal(true)} className="flex items-center gap-2 bg-[#bb86fc] text-[#0a0514] px-5 py-3 rounded-xl font-bold hover:bg-[#a364ff] transition-all shadow-[0_0_15px_rgba(187,134,252,0.3)]">
-            <PlusCircle className="w-5 h-5" /> Añadir Ramo
+
+          <button onClick={() => setShowAddModal(true)} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 18px', borderRadius: '10px', background: 'linear-gradient(135deg, #7c3aed, #6d28d9)', border: 'none', color: 'white', cursor: 'pointer', fontSize: '14px', fontWeight: '500', boxShadow: '0 4px 16px rgba(124,58,237,0.35)' }}>
+            <PlusCircle style={{ width: '16px', height: '16px' }} /> Añadir Ramo
           </button>
-        </header>
-
-        {/* CURSOS ACTUALES */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
-          {cursosActuales.length === 0 ? (
-            <div className="col-span-full border border-dashed border-[#2d1b4d] rounded-2xl p-12 text-center">
-              <GraduationCap className="w-12 h-12 text-[#8892b0] mx-auto mb-4" />
-              <p className="text-[#ccd6f6] font-bold text-lg">Aún no tienes ramos inscritos</p>
-              <p className="text-[#8892b0]">Haz clic en "Añadir Ramo" para empezar a organizar tu semestre.</p>
-            </div>
-          ) : (
-            cursosActuales.map((curso) => (
-              <div key={curso.id} className="border border-[#2d1b4d] bg-[#1a0b2e] p-6 rounded-2xl relative group hover:border-[#bb86fc] hover:shadow-[0_0_20px_rgba(187,134,252,0.1)] transition-all">
-                <button 
-                  onClick={() => toggleCursoEstado(curso.id)}
-                  className="absolute top-4 right-4 p-2 bg-[#0a0514] rounded-lg text-[#8892b0] hover:text-[#fbbf24] opacity-0 group-hover:opacity-100 transition-all border border-[#2d1b4d] hover:border-[#fbbf24]/50"
-                  title="Aprobar y Archivar Ramo"
-                >
-                  <Archive className="w-4 h-4" />
-                </button>
-
-                <div onClick={() => router.push(`/dashboard/curso/${encodeURIComponent(curso.nombre)}`)} className="cursor-pointer">
-                  <div className="w-12 h-12 rounded-xl bg-[#0a0514] border border-[#2d1b4d] flex items-center justify-center mb-4 text-[#bb86fc] group-hover:bg-[#bb86fc]/10 transition-colors">
-                    <FolderGit2 className="w-6 h-6" />
-                  </div>
-                  <h3 className="text-xl font-bold text-[#ccd6f6] mb-2 leading-tight">{curso.nombre}</h3>
-                  <div className="flex items-center gap-2 text-[#8892b0] text-sm mt-4">
-                    <span className="flex items-center gap-1 bg-[#0a0514] px-2 py-1 rounded-md border border-[#2d1b4d]"><BookOpen className="w-3 h-3"/> {curso.creditos} Créditos</span>
-                  </div>
-                </div>
-              </div>
-            ))
-          )}
         </div>
 
-        {/* CARPETA ARCHIVADOS */}
-        {cursosArchivados.length > 0 && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '14px', marginBottom: '32px' }}>
+          <StatCard icon={FolderOpen} label="Ramos activos" value={cursosActuales.length.toString()} color="#7c3aed" />
+          <StatCard icon={Archive} label="Ramos archivados" value={cursosArchivados.length.toString()} color="#0891b2" />
+          <StatCard icon={Star} label="Karma acumulado" value="150" sub="Listo para canjear" color="#fbbf24" />
+          <StatCard icon={Users} label="Comunidad UDP" value="1.2K" sub="Estudiantes activos" color="#10b981" />
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: '24px', alignItems: 'start' }}>
+          
+          {/* Left — Subjects */}
           <div>
-            <h2 className="text-2xl font-bold text-[#8892b0] mb-6 flex items-center gap-2">
-              <Archive className="w-6 h-6" /> Ramos Aprobados / Archivados
-            </h2>
-            <div className="flex flex-wrap gap-4">
-              {cursosArchivados.map((curso) => (
-                <div 
-                  key={curso.id} 
-                  onClick={() => toggleCursoEstado(curso.id)}
-                  title="Clic para restaurar al semestre actual"
-                  className="flex items-center gap-3 bg-[#0d0820] border border-[#2d1b4d] px-4 py-3 rounded-xl opacity-70 hover:opacity-100 cursor-pointer transition-opacity hover:border-[#bb86fc]/50"
-                >
-                  <FolderGit2 className="w-4 h-4 text-[#8892b0]" />
-                  <span className="text-[#ccd6f6] font-medium">{curso.nombre}</span>
-                </div>
-              ))}
+            <h2 style={{ fontFamily: "'Syne', sans-serif", fontSize: '18px', fontWeight: '700', color: '#f0ecff', marginBottom: '16px' }}>Mis Ramos</h2>
+            
+            {cursosActuales.length === 0 ? (
+              <div style={{ border: '1px dashed rgba(139,92,246,0.3)', borderRadius: '16px', padding: '40px', textAlign: 'center' }}>
+                <GraduationCap style={{ width: '40px', height: '40px', color: '#5c527a', margin: '0 auto 12px' }} />
+                <p style={{ color: '#f0ecff', fontWeight: 'bold' }}>Aún no tienes ramos inscritos</p>
+                <p style={{ color: '#8892b0', fontSize: '13px' }}>Haz clic en "Añadir Ramo" en la esquina superior derecha.</p>
+              </div>
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '14px' }}>
+                {cursosActuales.map(c => <SubjectCard key={c.id} curso={c} router={router} onToggleEstado={toggleCursoEstado} />)}
+              </div>
+            )}
+
+            {cursosArchivados.length > 0 && (
+              <div style={{ marginTop: '32px' }}>
+                 <h2 style={{ fontFamily: "'Syne', sans-serif", fontSize: '16px', fontWeight: '700', color: '#8892b0', marginBottom: '16px' }}>Archivados</h2>
+                 <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                    {cursosArchivados.map(curso => (
+                      <div key={curso.id} onClick={() => toggleCursoEstado(curso.id)} style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(26,22,64,0.3)', border: '1px solid rgba(139,92,246,0.1)', padding: '8px 12px', borderRadius: '10px', cursor: 'pointer' }}>
+                        <Archive style={{ width: '14px', height: '14px', color: '#8892b0' }} />
+                        <span style={{ fontSize: '13px', color: '#ccd6f6' }}>{curso.nombre}</span>
+                      </div>
+                    ))}
+                 </div>
+              </div>
+            )}
+          </div>
+
+          {/* Right column */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            <div style={{ background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.18)', borderRadius: '14px', padding: '18px 20px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
+                <Shield style={{ width: '16px', height: '16px', color: '#f59e0b' }} />
+                <h3 style={{ fontSize: '14px', fontWeight: '600', color: '#fcd34d', fontFamily: "'Syne', sans-serif" }}>Sistema de Cuarentena</h3>
+              </div>
+              <p style={{ fontSize: '12px', color: '#fde68a', lineHeight: 1.6 }}>Tienes <strong style={{ color: '#fbbf24' }}>3 archivos</strong> pendientes de moderación por la comunidad. Revisar y aprobar material te otorga <strong style={{ color: '#fbbf24' }}>+10 Karma</strong>.</p>
+              <button onClick={() => router.push('/dashboard/moderacion')} style={{ marginTop: '14px', width: '100%', padding: '9px', borderRadius: '8px', background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.25)', color: '#fbbf24', fontSize: '13px', fontWeight: '500', cursor: 'pointer' }}>
+                Ir a moderar →
+              </button>
             </div>
           </div>
-        )}
+        </div>
       </main>
     </div>
   )
