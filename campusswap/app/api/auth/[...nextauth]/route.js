@@ -1,42 +1,40 @@
 import NextAuth from "next-auth"
 import GoogleProvider from "next-auth/providers/google"
 
-const ALLOWED_DOMAINS = ["mail.udp.cl", "udp.cl"] // Permitimos ambos
+const ALLOWED_DOMAINS = ["mail.udp.cl", "udp.cl"]
 
 export const authOptions = {
   providers: [
     GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+      clientId: process.env.GOOGLE_CLIENT_ID || "",
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
     })
   ],
   callbacks: {
-    async signIn({ user, account, profile }) {
-      if (account.provider === "google") {
-        const email = profile.email
-        const domain = email.split("@")[1]
+    async signIn({ account, profile }) {
+      if (account?.provider === "google") {
+        if (!profile || !profile.email) return false 
         
-        // Verifica si el dominio está en la lista permitida
+        const domain = profile.email.split("@")[1]
+        
         if (ALLOWED_DOMAINS.includes(domain)) {
           return true
         } else {
-          // Redirige al login con el flag de error
           return "/?error=AccessDenied"
         }
       }
       return false
     },
     async jwt({ token, user }) {
-      if (user) {
-        // Asignación correcta de roles
+      if (user && user.email) {
         const domain = user.email.split("@")[1]
         token.role = domain === "mail.udp.cl" ? "ESTUDIANTE" : "STAFF"
       }
       return token
     },
     async session({ session, token }) {
-      if (token) {
-        session.user.role = token.role
+      if (token && session.user) {
+        session.user.role = token.role || "ESTUDIANTE"
       }
       return session
     }
@@ -45,6 +43,7 @@ export const authOptions = {
     signIn: '/'
   },
   secret: process.env.NEXTAUTH_SECRET,
+  debug: true, 
 }
 
 const handler = NextAuth(authOptions)
