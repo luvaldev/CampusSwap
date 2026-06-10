@@ -6,8 +6,8 @@ const ALLOWED_DOMAINS = ["mail.udp.cl", "udp.cl"]
 export const authOptions = {
   providers: [
     GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID || "",
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
+      clientId: process.env.GOOGLE_ID || "",
+      clientSecret: process.env.GOOGLE_SECRET || "",
     })
   ],
   callbacks: {
