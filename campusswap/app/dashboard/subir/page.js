@@ -93,10 +93,10 @@ export default function SubirApunte() {
   }
 
   return (
-    <div style={{ display: 'flex', height: '100vh', background: '#060410', overflow: 'hidden' }}>
+    <>
 
       {/* ── Main content ── */}
-      <main style={{ flex: 1, overflowY: 'auto', padding: '32px 36px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+      <main style={{ flex: 1, overflowY: 'auto', padding: '32px 36px', display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
         
         <div style={{ width: '100%', maxWidth: '700px' }}>
           {/* Header */}
@@ -242,6 +242,6 @@ export default function SubirApunte() {
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         @keyframes fadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
       `}</style>
-    </div>
+    </>
   )
 }

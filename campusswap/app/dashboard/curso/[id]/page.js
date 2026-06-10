@@ -91,11 +91,11 @@ export default function CursoDetalle() {
   }
 
   return (
-    <div style={{ display: 'flex', height: '100vh', background: '#060410', overflow: 'hidden' }}>
+    <>
       
 
       {/* ── Contenido Principal ── */}
-      <main style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      <main style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', width: '100%' }}>
         
         {/* Header Superior del Curso */}
         <div style={{ padding: '32px 36px 20px', borderBottom: '1px solid rgba(139,92,246,0.1)', background: 'rgba(6,4,16,0.8)' }}>
@@ -227,6 +227,6 @@ export default function CursoDetalle() {
           
         </div>
       </main>
-    </div>
+    </>
   )
 }

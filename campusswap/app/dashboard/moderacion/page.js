@@ -110,7 +110,7 @@ export default function Moderacion() {
   if (status === "unauthenticated") return null
 
   return (
-    <div style={{ display: 'flex', height: '100vh', background: '#060410', overflow: 'hidden', position: 'relative' }}>
+    <>
       
       {/* ── ALERTA FLOTANTE (TOAST NOTIFICATION) ── */}
       {toastMessage && (
@@ -131,7 +131,7 @@ export default function Moderacion() {
       )}
 
       {/* ── Contenido Principal ── */}
-      <main style={{ flex: 1, overflowY: 'auto', padding: '32px 36px' }}>
+      <main style={{ flex: 1, overflowY: 'auto', padding: '32px 36px', width: '100%' }}>
         
         {/* Header */}
         <div style={{ marginBottom: '32px' }}>
@@ -255,6 +255,6 @@ export default function Moderacion() {
         }
         * { box-sizing: border-box; }
       `}</style>
-    </div>
+    </>
   )
 }

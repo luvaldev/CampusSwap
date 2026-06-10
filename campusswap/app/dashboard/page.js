@@ -213,8 +213,7 @@ export default function Dashboard() {
   const firstName = session?.user?.name?.split(' ')[0] || 'Estudiante'
 
   return (
-    <div style={{ display: 'flex', height: '100vh', background: '#060410', overflow: 'hidden' }}>
-
+    <>
       {/* --- MODAL ONBOARDING --- */}
       {showOnboarding && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(4px)' }}>
@@ -273,7 +272,7 @@ export default function Dashboard() {
       )}
 
       {/* ── Main content ── */}
-      <main style={{ flex: 1, overflowY: 'auto', padding: '32px 36px' }}>
+      <main style={{ flex: 1, overflowY: 'auto', padding: '32px 36px', width: '100%' }}>
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '32px' }}>
           <div>
@@ -344,6 +343,6 @@ export default function Dashboard() {
           </div>
         </div>
       </main>
-    </div>
+    </>
   )
 }
