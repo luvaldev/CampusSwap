@@ -1,82 +1,51 @@
 import NextAuth from "next-auth"
 import GoogleProvider from "next-auth/providers/google"
 
-const ALLOWED_DOMAINS = ["@mail.udp.cl"]
+const ALLOWED_DOMAINS = ["mail.udp.cl", "udp.cl"] // Permitimos ambos
 
-function isAllowedEmail(email = "") {
-  return ALLOWED_DOMAINS.some((domain) => email.endsWith(domain))
-}
-
-const handler = NextAuth({
+export const authOptions = {
   providers: [
     GoogleProvider({
-      clientId: process.env.GOOGLE_ID,
-      clientSecret: process.env.GOOGLE_SECRET,
-      authorization: {
-        params: {
-          // Force account selection so users can switch between institutional accounts
-          prompt: "select_account",
-          hd: "mail.udp.cl", // Google Workspace domain hint (shows only UDP accounts)
-        },
-      },
-    }),
+      clientId: process.env.GOOGLE_CLIENT_ID,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+    })
   ],
-
   callbacks: {
-    /**
-     * Called whenever a sign-in attempt is made.
-     * Returning false sends the user to the error page with AccessDenied.
-     */
     async signIn({ user, account, profile }) {
-      if (account?.provider === "google") {
-        const email = profile?.email || user?.email || ""
-        return isAllowedEmail(email)
+      if (account.provider === "google") {
+        const email = profile.email
+        const domain = email.split("@")[1]
+        
+        // Verifica si el dominio está en la lista permitida
+        if (ALLOWED_DOMAINS.includes(domain)) {
+          return true
+        } else {
+          // Redirige al login con el flag de error
+          return "/?error=AccessDenied"
+        }
       }
-      // Allow other providers (if added later)
-      return true
+      return false
     },
-
-    /**
-     * Enrich the JWT with extra fields we need on the client.
-     * Called every time a JWT is created or updated.
-     */
-    async jwt({ token, account, profile }) {
-      if (account && profile) {
-        token.accessToken = account.access_token
-        token.provider = account.provider
-        // Store a normalized role — future-proof for admin/staff distinction
-        const email = token.email || ""
-        token.role = email.endsWith("@mail.udp.cl") ? "staff" : "student"
+    async jwt({ token, user }) {
+      if (user) {
+        // Asignación correcta de roles
+        const domain = user.email.split("@")[1]
+        token.role = domain === "mail.udp.cl" ? "ESTUDIANTE" : "STAFF"
       }
       return token
     },
-
-    /**
-     * Called whenever a session is checked (client-side useSession, etc.).
-     * Expose only what the frontend needs.
-     */
     async session({ session, token }) {
-      if (session?.user) {
+      if (token) {
         session.user.role = token.role
-        session.user.provider = token.provider
       }
       return session
-    },
+    }
   },
-
   pages: {
-    signIn: "/",
-    error: "/",
+    signIn: '/'
   },
+  secret: process.env.NEXTAUTH_SECRET,
+}
 
-  session: {
-    strategy: "jwt",
-    // Sessions expire after 8 hours — appropriate for a study-session tool
-    maxAge: 8 * 60 * 60,
-  },
-
-  // Enable debug logs only in development
-  debug: process.env.NODE_ENV === "development",
-})
-
+const handler = NextAuth(authOptions)
 export { handler as GET, handler as POST }
