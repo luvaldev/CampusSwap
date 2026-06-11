@@ -7,8 +7,6 @@ import {
   BookOpen, ChevronRight, Star
 } from "lucide-react"
 
-import { carrerasDB } from "../data/database"
-
 function NavItem({ icon: Icon, label, active, badge, onClick }) {
   return (
     <div 
@@ -35,17 +33,24 @@ function NavItem({ icon: Icon, label, active, badge, onClick }) {
 }
 
 export default function Sidebar() {
-  const { data: session } = useSession()
+  const { data: session, status } = useSession()
   const router = useRouter()
-  const pathname = usePathname() // <-- Hook para saber la ruta actual
+  const pathname = usePathname() 
   const [userCareer, setUserCareer] = useState(null)
 
+  // Consultamos a la base de datos real en cuanto la sesión esté activa
   useEffect(() => {
-    const savedCareerId = localStorage.getItem("userCareerId")
-    if (savedCareerId) {
-      setUserCareer(carrerasDB.find(c => c.id === savedCareerId))
+    if (status === "authenticated") {
+      fetch("/api/user/me")
+        .then(res => res.json())
+        .then(data => {
+          if (data && data.career) {
+            setUserCareer(data.career)
+          }
+        })
+        .catch(err => console.error("Error al cargar la carrera:", err))
     }
-  }, [])
+  }, [status])
 
   return (
     <aside style={{ width: '240px', flexShrink: 0, borderRight: '1px solid rgba(139,92,246,0.1)', background: 'rgba(13,8,32,0.6)', backdropFilter: 'blur(20px)', display: 'flex', flexDirection: 'column', padding: '24px 16px' }}>
@@ -59,7 +64,6 @@ export default function Sidebar() {
       <nav style={{ flex: 1 }}>
         <p style={{ fontSize: '10px', color: '#5c527a', fontWeight: '600', letterSpacing: '1.5px', textTransform: 'uppercase', padding: '0 12px', marginBottom: '8px' }}>Principal</p>
         
-        {/* Usamos pathname para encender el botón correcto */}
         <NavItem icon={LayoutDashboard} label="Dashboard" active={pathname === '/dashboard'} onClick={() => router.push('/dashboard')} />
         <NavItem icon={Compass} label="Explorar" active={pathname.includes('/explorar') || pathname.includes('/curso')} onClick={() => router.push('/dashboard/explorar')} />
         
@@ -69,17 +73,32 @@ export default function Sidebar() {
         <NavItem icon={Shield} label="Moderar" active={pathname.includes('/moderacion')} onClick={() => router.push('/dashboard/moderacion')} />
       </nav>
 
+      {/* ESTA ES LA ZONA INFERIOR DEL SIDEBAR (Actualízala) */}
       <div style={{ borderTop: '1px solid rgba(139,92,246,0.1)', paddingTop: '16px', marginTop: '16px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '4px' }}>
-          <img src={session?.user?.image} alt="Avatar" style={{ width: '36px', height: '36px', borderRadius: '50%', border: '2px solid rgba(124,58,237,0.4)', flexShrink: 0 }} />
+        
+        {/* 👇 Contenedor modificado para ir al Perfil */}
+        <div 
+          onClick={() => router.push('/dashboard/perfil')}
+          style={{ 
+            display: 'flex', alignItems: 'center', gap: '10px', padding: '8px', 
+            borderRadius: '12px', cursor: 'pointer', transition: 'background 0.2s' 
+          }}
+          onMouseEnter={e => e.currentTarget.style.background = 'rgba(124,58,237,0.1)'}
+          onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+        >
+          <img src={session?.user?.image || "https://images.unsplash.com/photo-1534528741775-53994a69daeb"} alt="Avatar" style={{ width: '36px', height: '36px', borderRadius: '50%', border: '2px solid rgba(124,58,237,0.4)', flexShrink: 0 }} />
           <div style={{ flex: 1, minWidth: 0 }}>
-            <p style={{ fontSize: '13px', fontWeight: '600', color: '#f0ecff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{session?.user?.name}</p>
-            <p style={{ fontSize: '10px', color: '#a78bfa', background: 'rgba(124,58,237,0.1)', border: '1px solid rgba(124,58,237,0.2)', padding: '2px 4px', borderRadius: '4px', display: 'inline-block', marginTop: '2px' }}>
-              {userCareer?.tag || 'Configurando'}
+            <p style={{ fontSize: '13px', fontWeight: '600', color: '#f0ecff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', margin: 0 }}>{session?.user?.name || 'Estudiante'}</p>
+            <p style={{ fontSize: '10px', color: '#a78bfa', background: 'rgba(124,58,237,0.1)', border: '1px solid rgba(124,58,237,0.2)', padding: '2px 4px', borderRadius: '4px', display: 'inline-block', marginTop: '4px' }}>
+              {userCareer?.tag || 'Sin Carrera'}
             </p>
           </div>
         </div>
-        <button onClick={() => signOut()} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', marginTop: '12px', padding: '8px', borderRadius: '8px', background: 'transparent', border: '1px solid transparent', cursor: 'pointer', color: '#5c527a', fontSize: '13px' }}>
+        
+        <button onClick={() => signOut()} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', marginTop: '12px', padding: '8px', borderRadius: '8px', background: 'transparent', border: '1px solid transparent', cursor: 'pointer', color: '#5c527a', fontSize: '13px', transition: 'color 0.2s' }}
+        onMouseEnter={e => e.currentTarget.style.color = '#ef4444'}
+        onMouseLeave={e => e.currentTarget.style.color = '#5c527a'}
+        >
           <LogOut style={{ width: '14px', height: '14px' }} /> Cerrar sesión
         </button>
       </div>
