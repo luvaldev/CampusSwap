@@ -1,268 +1,201 @@
 'use client'
-import { useSession } from "next-auth/react"
+import { signOut, useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 import {
-  Star, Bell, Shield, BookOpen, GraduationCap, ChevronRight,
-  Users, FileText, Activity, Clock, BookMarked, Plus
-} from "lucide-react"
+  Star, FileText, Shield, Trophy, Clock, Swap,
+  SignOut, CalendarBlank, GraduationCap, Pencil,
+  WarningCircle, CheckCircle
+} from "@phosphor-icons/react"
 
-export default function DashboardPage() {
-  const { data: session } = useSession()
+export default function PerfilPage() {
+  const { data: session, status } = useSession()
   const router = useRouter()
+  const [mounted, setMounted] = useState(false)
+  const [userData, setUserData] = useState(null)
+  const [showChangeCareer, setShowChangeCareer] = useState(false)
+  const [toastMessage, setToastMessage] = useState("")
 
-  const [data, setData] = useState(null)
-  const [facultades, setFacultades] = useState([])
-  const [showOnboarding, setShowOnboarding] = useState(false)
-  const [showEnrollModal, setShowEnrollModal] = useState(false)
-  
-  // Estados para formularios
-  const [selectedFaculty, setSelectedFaculty] = useState(null)
-  const [selectedCareer, setSelectedCareer] = useState(null)
-  const [selectedCourses, setSelectedCourses] = useState([]) // Array de IDs de ramos
-  const [isSaving, setIsSaving] = useState(false)
+  useEffect(() => { setMounted(true) }, [])
 
   useEffect(() => {
-    if (session?.user) {
-      // Cargar resumen
-      fetch("/api/dashboard/summary")
+    if (status === "unauthenticated") router.push('/')
+    if (status === "authenticated") {
+      fetch("/api/user/me")
         .then(res => res.json())
-        .then(d => {
-          setData(d)
-          if (d.user && !d.user.careerId) setShowOnboarding(true)
-          if (d.user?.enrolledCourses) {
-            setSelectedCourses(d.user.enrolledCourses.map(c => c.id))
-          }
-        })
-      // Cargar facultades (por si necesita onboarding)
-      fetch("/api/faculties").then(res => res.json()).then(f => setFacultades(f))
+        .then(data => setUserData(data))
+        .catch(err => console.error("Error cargando perfil:", err))
     }
-  }, [session])
+  }, [status, router])
 
-  // --- FUNCIONES DE GUARDADO ---
-  const handleSaveCareer = async () => {
-    if (!selectedCareer) return
-    setIsSaving(true)
-    const res = await fetch("/api/user/onboarding", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ careerId: selectedCareer.id }),
-    })
-    if (res.ok) window.location.reload()
-    setIsSaving(false)
-  }
-
-  const handleSaveCourses = async () => {
-    setIsSaving(true)
-    const res = await fetch("/api/user/enroll", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ courseIds: selectedCourses }),
-    })
-    if (res.ok) {
-      setShowEnrollModal(false)
-      window.location.reload()
+  const handleChangeCareer = async () => {
+    try {
+      const res = await fetch("/api/user/change-career", { method: "POST" })
+      const data = await res.json()
+      if (res.ok) {
+        setToastMessage("Carrera reseteada. Recargando...")
+        setTimeout(() => window.location.reload(), 1500)
+      } else {
+        setToastMessage(data.error || "Error al cambiar carrera")
+      }
+    } catch {
+      setToastMessage("Error de conexión")
     }
-    setIsSaving(false)
+    setShowChangeCareer(false)
   }
 
-  const toggleCourse = (courseId) => {
-    setSelectedCourses(prev => 
-      prev.includes(courseId) ? prev.filter(id => id !== courseId) : [...prev, courseId]
-    )
+  if (status === "loading" || !mounted) {
+    return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh' }}><div className="spinner spinner-lg" /></div>
   }
+
+  const karma = userData?.karma || 0
+  const careerName = userData?.career?.name || 'Sin Carrera'
+  const enrolledCount = userData?.enrolledCourses?.length || 0
+
+  // Karma tier (Every 500 pts)
+  const rankNames = ['Novato', 'Intermedio', 'Avanzado', 'Experto', 'Maestro', 'Gran Maestro']
+  const rankColors = ['var(--text-muted)', 'oklch(65% 0.12 60)', 'oklch(72% 0.04 240)', 'var(--karma)', 'var(--brand)', 'var(--success)']
+  
+  const rankIndex = Math.min(Math.floor(karma / 500), rankNames.length - 1)
+  const tierName = rankNames[rankIndex]
+  const tierColor = rankColors[rankIndex]
+  const nextTierName = rankIndex < rankNames.length - 1 ? rankNames[rankIndex + 1] : 'Rango Máximo'
+  
+  const progressPercentage = rankIndex === rankNames.length - 1 ? 100 : ((karma % 500) / 500) * 100
+  const pointsToNext = rankIndex === rankNames.length - 1 ? 0 : 500 - (karma % 500)
 
   return (
-    <div style={{ width: '100%', display: 'flex', flexDirection: 'column' }}>
-      
-      {/* HEADER: Carga instantáneo con datos de sesión */}
-      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
-        <div>
-          <h1 style={{ fontSize: '26px', fontWeight: '700', color: '#fff', marginBottom: '4px', fontFamily: "'Syne', sans-serif" }}>
-            ¡Hola, {session?.user?.name?.split(" ")[0] || "Estudiante"}!
-          </h1>
-          <p style={{ color: '#94a3b8', fontSize: '14px' }}>
-            {data?.user?.career?.name || "Cargando tu información..."}
-          </p>
+    <div style={{ maxWidth: 720, margin: '0 auto' }}>
+      {/* Toast */}
+      {toastMessage && (
+        <div className="toast toast-success">
+          <CheckCircle size={18} weight="fill" style={{ flexShrink: 0 }} />
+          <p>{toastMessage}</p>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <div style={{ background: 'rgba(255,255,255,0.03)', padding: '10px', borderRadius: '50%', border: '1px solid rgba(255,255,255,0.06)' }}>
-            <Bell style={{ width: '18px', height: '18px', color: '#94a3b8' }} />
-          </div>
-          <img src={session?.user?.image} alt="Avatar" style={{ width: '40px', height: '40px', borderRadius: '50%', border: '2px solid #8b5cf6' }} />
-        </div>
-      </header>
+      )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: '2.2fr 1fr', gap: '28px', width: '100%', alignItems: 'start' }}>
-        
-        {/* COLUMNA IZQUIERDA */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
-          
-          {/* MÉTRICAS */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
-            <div style={{ background: 'rgba(26,22,64,0.4)', border: '1px solid rgba(139,92,246,0.15)', padding: '20px', borderRadius: '16px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
-                <Star style={{ color: '#fbbf24', width: '20px', height: '20px' }} />
-                <h4 style={{ color: '#94a3b8', fontSize: '13px', margin: 0 }}>Mis Karma Points</h4>
-              </div>
-              <p style={{ color: '#fff', fontSize: '26px', fontWeight: '700', margin: 0 }}>
-                {data ? data.user?.karma : "..."} <span style={{ fontSize: '14px', color: '#a78bfa', fontWeight: '400' }}>pts</span>
-              </p>
-            </div>
-
-            <div style={{ background: 'rgba(26,22,64,0.4)', border: '1px solid rgba(139,92,246,0.15)', padding: '20px', borderRadius: '16px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
-                <Users style={{ color: '#3b82f6', width: '20px', height: '20px' }} />
-                <h4 style={{ color: '#94a3b8', fontSize: '13px', margin: 0 }}>Comunidad</h4>
-              </div>
-              <p style={{ color: '#fff', fontSize: '26px', fontWeight: '700', margin: 0 }}>
-                {data ? data.stats?.totalUsers : "..."} <span style={{ fontSize: '14px', color: '#60a5fa', fontWeight: '400' }}>alumnos</span>
-              </p>
-            </div>
-
-            <div style={{ background: 'rgba(26,22,64,0.4)', border: '1px solid rgba(139,92,246,0.15)', padding: '20px', borderRadius: '16px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
-                <FileText style={{ color: '#10b981', width: '20px', height: '20px' }} />
-                <h4 style={{ color: '#94a3b8', fontSize: '13px', margin: 0 }}>Biblioteca</h4>
-              </div>
-              <p style={{ color: '#fff', fontSize: '26px', fontWeight: '700', margin: 0 }}>
-                {data ? data.stats?.totalDocs : "..."} <span style={{ fontSize: '14px', color: '#34d399', fontWeight: '400' }}>apuntes</span>
-              </p>
-            </div>
-          </div>
-
-          {/* RAMOS INSCRITOS */}
-          <div style={{ background: 'rgba(20,16,47,0.4)', border: '1px solid rgba(139,92,246,0.08)', padding: '24px', borderRadius: '20px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <BookMarked style={{ width: '20px', height: '20px', color: '#c084fc' }} />
-                <h3 style={{ color: '#fff', fontSize: '18px', fontWeight: '600', margin: 0 }}>Mis Asignaturas Inscritas</h3>
-              </div>
-              <button 
-                onClick={() => setShowEnrollModal(true)}
-                style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(124,58,237,0.1)', color: '#a78bfa', border: '1px solid rgba(124,58,237,0.3)', padding: '6px 12px', borderRadius: '8px', fontSize: '12px', cursor: 'pointer', transition: 'all 0.2s' }}
-              >
-                <Plus style={{ width: '14px', height: '14px' }} /> Gestionar
-              </button>
-            </div>
-            
-            {!data ? (
-               <p style={{ color: '#64748b', fontSize: '14px' }}>Cargando asignaturas...</p>
-            ) : data.user?.enrolledCourses?.length > 0 ? (
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                {data.user.enrolledCourses.map((ramo) => (
-                  <div key={ramo.id} onClick={() => router.push(`/dashboard/curso/${ramo.id}`)} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 18px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '12px', cursor: 'pointer' }}>
-                    <div>
-                      <p style={{ color: '#f1f5f9', fontSize: '14px', fontWeight: '500', margin: '0 0 4px 0' }}>{ramo.name}</p>
-                      <span style={{ color: '#64748b', fontSize: '11px', fontWeight: '600' }}>{ramo.id} • {ramo.credits} Créditos</span>
-                    </div>
-                    <ChevronRight style={{ width: '16px', height: '16px', color: '#475569' }} />
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div style={{ textAlign: 'center', padding: '20px', border: '1px dashed rgba(255,255,255,0.1)', borderRadius: '12px' }}>
-                <p style={{ color: '#94a3b8', fontSize: '14px', marginBottom: '12px' }}>No tienes asignaturas inscritas este semestre.</p>
-                <button onClick={() => setShowEnrollModal(true)} style={{ background: '#7c3aed', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: '8px', fontSize: '13px', cursor: 'pointer' }}>Inscribir Ramos Ahora</button>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* COLUMNA DERECHA */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          
-          <div style={{ background: 'rgba(245,158,11,0.05)', border: '1px solid rgba(245,158,11,0.15)', borderRadius: '16px', padding: '20px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
-              <Shield style={{ width: '18px', height: '18px', color: '#f59e0b' }} />
-              <h3 style={{ fontSize: '14px', fontWeight: '600', color: '#fcd34d', margin: 0 }}>Sistema de Cuarentena</h3>
-            </div>
-            <p style={{ fontSize: '12px', color: '#fde68a', lineHeight: 1.6, margin: '0 0 14px 0' }}>
-              Asegura la calidad académica revisando apuntes. Obtén <strong style={{ color: '#fff' }}>+10 Karma</strong> por moderación.
-            </p>
-            <button onClick={() => router.push('/dashboard/moderacion')} style={{ width: '100%', padding: '9px', borderRadius: '8px', background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.2)', color: '#fef08a', fontSize: '12px', fontWeight: '600', cursor: 'pointer' }}>
-              Panel de Moderación
-            </button>
-          </div>
-
-          <div style={{ background: 'rgba(13,8,32,0.4)', border: '1px solid rgba(255,255,255,0.04)', borderRadius: '16px', padding: '20px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
-              <Activity style={{ width: '16px', height: '16px', color: '#a78bfa' }} />
-              <h3 style={{ fontSize: '14px', fontWeight: '600', color: '#f1f5f9', margin: 0 }}>Actividad Reciente</h3>
-            </div>
-            
-            {!data ? (
-               <p style={{ color: '#64748b', fontSize: '12px' }}>Buscando actividad...</p>
-            ) : data.recentActivity?.length > 0 ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                {data.recentActivity.map((act) => (
-                  <div key={act.id} style={{ display: 'flex', gap: '12px', alignItems: 'start' }}>
-                    <div style={{ background: 'rgba(139,92,246,0.1)', padding: '6px', borderRadius: '8px', color: '#a78bfa', marginTop: '2px' }}><Clock style={{ width: '12px', height: '12px' }} /></div>
-                    <div>
-                      <p style={{ color: '#e2e8f0', fontSize: '12px', fontWeight: '500', margin: '0 0 2px 0' }}>{act.text}</p>
-                      <span style={{ color: '#64748b', fontSize: '10px' }}>{act.sub}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p style={{ color: '#64748b', fontSize: '13px', fontStyle: 'italic' }}>Aún no hay actividad reciente en la plataforma.</p>
-            )}
-          </div>
+      {/* Profile Header */}
+      <div className="card" style={{ textAlign: 'center', padding: 'var(--space-10) var(--space-8)', marginBottom: 'var(--space-6)' }}>
+        <img
+          src={session?.user?.image || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=160&h=160&fit=crop"}
+          alt={`Avatar de ${session?.user?.name || 'Estudiante'}`}
+          style={{ width: 80, height: 80, borderRadius: '50%', border: '3px solid var(--brand)', margin: '0 auto var(--space-5)', objectFit: 'cover' }}
+        />
+        <h1 style={{ fontSize: 'var(--text-2xl)', fontWeight: 800, marginBottom: 'var(--space-2)' }}>
+          {session?.user?.name || 'Estudiante UDP'}
+        </h1>
+        <p style={{ color: 'var(--text-secondary)', fontSize: 'var(--text-sm)', marginBottom: 'var(--space-4)' }}>
+          {session?.user?.email}
+        </p>
+        <div style={{ display: 'flex', justifyContent: 'center', gap: 'var(--space-3)', flexWrap: 'wrap' }}>
+          <span className="badge badge-brand"><GraduationCap size={14} weight="fill" /> {careerName}</span>
+          <span className="badge badge-karma"><Star size={14} weight="fill" /> {karma} Karma · {tierName}</span>
         </div>
       </div>
 
-      {/* MODAL 1: ONBOARDING (Elegir Carrera) */}
-      {showOnboarding && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(3, 2, 9, 0.85)', backdropFilter: 'blur(12px)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 9999 }}>
-          <div style={{ width: '100%', maxWidth: '480px', background: '#0b081e', border: '1px solid rgba(139,92,246,0.2)', borderRadius: '24px', padding: '36px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            <h2 style={{ fontSize: '22px', color: '#fff', textAlign: 'center' }}>Bienvenido a CampusSwap</h2>
-            <p style={{ color: '#94a3b8', fontSize: '14px', textAlign: 'center' }}>Selecciona tu facultad y carrera para continuar.</p>
-            
-            <select onChange={(e) => { const fac = facultades.find(f => f.id === e.target.value); setSelectedFaculty(fac); setSelectedCareer(null); }} style={{ padding: '12px', background: '#110d2c', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '10px', color: '#fff' }}>
-              <option value="">-- Facultad --</option>
-              {facultades.map(fac => <option key={fac.id} value={fac.id}>{fac.name}</option>)}
-            </select>
+      {/* Stats Grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 'var(--space-4)', marginBottom: 'var(--space-6)' }}>
+        <div className="stat-card" style={{ textAlign: 'center', alignItems: 'center' }}>
+          <Star size={22} weight="fill" color="var(--karma)" />
+          <p className="stat-value" style={{ fontSize: 'var(--text-xl)' }}>{karma}</p>
+          <p className="stat-label">Karma</p>
+        </div>
+        <div className="stat-card" style={{ textAlign: 'center', alignItems: 'center' }}>
+          <FileText size={22} weight="fill" color="var(--brand)" />
+          <p className="stat-value" style={{ fontSize: 'var(--text-xl)' }}>0</p>
+          <p className="stat-label">Subidos</p>
+        </div>
+        <div className="stat-card" style={{ textAlign: 'center', alignItems: 'center' }}>
+          <Shield size={22} weight="fill" color="var(--success)" />
+          <p className="stat-value" style={{ fontSize: 'var(--text-xl)' }}>0</p>
+          <p className="stat-label">Moderados</p>
+        </div>
+        <div className="stat-card" style={{ textAlign: 'center', alignItems: 'center' }}>
+          <GraduationCap size={22} weight="fill" color="var(--info)" />
+          <p className="stat-value" style={{ fontSize: 'var(--text-xl)' }}>{enrolledCount}</p>
+          <p className="stat-label">Ramos</p>
+        </div>
+      </div>
 
-            {selectedFaculty && (
-              <select onChange={(e) => setSelectedCareer(selectedFaculty.careers.find(c => c.id === e.target.value))} style={{ padding: '12px', background: '#110d2c', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '10px', color: '#fff' }}>
-                <option value="">-- Carrera --</option>
-                {selectedFaculty.careers.map(car => <option key={car.id} value={car.id}>{car.name}</option>)}
-              </select>
-            )}
+      {/* Karma Progress */}
+      <div className="card" style={{ marginBottom: 'var(--space-6)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-4)' }}>
+          <h3 style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', fontSize: 'var(--text-base)', fontWeight: 700 }}>
+            <Trophy size={18} weight="fill" color={tierColor} /> Progresión de Rango
+          </h3>
+          <span className="badge badge-karma">{tierName}</span>
+        </div>
+        <div style={{ background: 'var(--surface-2)', borderRadius: 'var(--radius-pill)', height: 8, overflow: 'hidden', marginBottom: 'var(--space-3)' }}>
+          <div style={{
+            height: '100%',
+            width: `${progressPercentage}%`,
+            background: 'var(--karma)',
+            borderRadius: 'var(--radius-pill)',
+            transition: 'width 0.5s var(--ease-out)'
+          }} />
+        </div>
+        <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
+          {pointsToNext > 0 ? `${pointsToNext} puntos para alcanzar el rango ${nextTierName}` : '¡Has alcanzado el rango máximo en la plataforma!'}
+        </p>
+      </div>
 
-            <button onClick={handleSaveCareer} disabled={!selectedCareer || isSaving} style={{ padding: '14px', background: selectedCareer ? '#7c3aed' : '#333', color: '#fff', borderRadius: '10px', border: 'none', cursor: selectedCareer ? 'pointer' : 'not-allowed' }}>
-              {isSaving ? "Guardando..." : "Comenzar"}
-            </button>
+      {/* Recent Activity */}
+      <div className="card" style={{ marginBottom: 'var(--space-6)' }}>
+        <h3 style={{ fontSize: 'var(--text-base)', fontWeight: 700, marginBottom: 'var(--space-5)', display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+          <Clock size={18} weight="fill" color="var(--brand)" /> Historial de Contribuciones
+        </h3>
+        <div className="empty-state" style={{ padding: 'var(--space-8) var(--space-6)' }}>
+          <p style={{ color: 'var(--text-muted)', fontSize: 'var(--text-sm)' }}>Aún no tienes contribuciones registradas.</p>
+          <button onClick={() => router.push('/dashboard/subir')} className="btn btn-secondary btn-sm" style={{ marginTop: 'var(--space-4)' }}>
+            Subir tu primer apunte
+          </button>
+        </div>
+      </div>
+
+      {/* Account Actions */}
+      <div className="card" style={{ marginBottom: 'var(--space-6)' }}>
+        <h3 style={{ fontSize: 'var(--text-base)', fontWeight: 700, marginBottom: 'var(--space-5)', display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+          <Pencil size={18} weight="fill" color="var(--text-secondary)" /> Configuración
+        </h3>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+          <button
+            onClick={() => setShowChangeCareer(true)}
+            className="btn btn-secondary btn-full"
+            style={{ justifyContent: 'flex-start' }}
+          >
+            <Swap size={18} color="var(--warning)" /> Cambiar de Carrera
+            <span style={{ marginLeft: 'auto', color: 'var(--text-muted)', fontSize: 'var(--text-xs)' }}>Cooldown 30 días</span>
+          </button>
+
+          <button
+            onClick={() => signOut()}
+            className="btn btn-danger btn-full"
+            style={{ justifyContent: 'flex-start' }}
+          >
+            <SignOut size={18} /> Cerrar Sesión
+          </button>
+        </div>
+      </div>
+
+      {/* Change Career Confirm Modal */}
+      {showChangeCareer && (
+        <div className="modal-backdrop">
+          <div className="modal">
+            <div style={{ textAlign: 'center' }}>
+              <WarningCircle size={40} weight="fill" color="var(--warning)" style={{ marginBottom: 'var(--space-4)' }} />
+              <h2 style={{ fontSize: 'var(--text-xl)', marginBottom: 'var(--space-3)' }}>Cambiar de Carrera</h2>
+              <p style={{ color: 'var(--text-secondary)', fontSize: 'var(--text-sm)', lineHeight: 'var(--leading-relaxed)', maxWidth: '40ch', margin: '0 auto' }}>
+                Esta acción tiene un cooldown de 30 días. Se resetearán tus ramos inscritos.
+              </p>
+            </div>
+            <div style={{ display: 'flex', gap: 'var(--space-3)' }}>
+              <button onClick={() => setShowChangeCareer(false)} className="btn btn-secondary" style={{ flex: 1 }}>Cancelar</button>
+              <button onClick={handleChangeCareer} className="btn btn-danger" style={{ flex: 1 }}>Confirmar Cambio</button>
+            </div>
           </div>
         </div>
       )}
-
-      {/* MODAL 2: GESTIÓN DE RAMOS (Inscripción) */}
-      {showEnrollModal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(3, 2, 9, 0.85)', backdropFilter: 'blur(12px)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 9999 }}>
-          <div style={{ width: '100%', maxWidth: '600px', background: '#0b081e', border: '1px solid rgba(139,92,246,0.2)', borderRadius: '24px', padding: '36px', display: 'flex', flexDirection: 'column', gap: '20px', maxHeight: '80vh' }}>
-            <h2 style={{ fontSize: '20px', color: '#fff' }}>Inscribe tus Asignaturas</h2>
-            <p style={{ color: '#94a3b8', fontSize: '13px' }}>Selecciona los ramos que estás cursando actualmente. Puedes modificarlos el próximo semestre.</p>
-            
-            <div style={{ overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '10px', paddingRight: '10px' }}>
-              {data?.user?.career?.courses?.map(course => (
-                <label key={course.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', background: 'rgba(255,255,255,0.03)', padding: '12px', borderRadius: '10px', cursor: 'pointer', border: selectedCourses.includes(course.id) ? '1px solid #7c3aed' : '1px solid transparent' }}>
-                  <input type="checkbox" checked={selectedCourses.includes(course.id)} onChange={() => toggleCourse(course.id)} style={{ accentColor: '#7c3aed', width: '18px', height: '18px' }} />
-                  <div>
-                    <p style={{ color: '#fff', fontSize: '14px', margin: 0 }}>{course.name}</p>
-                    <span style={{ color: '#64748b', fontSize: '11px' }}>{course.id}</span>
-                  </div>
-                </label>
-              ))}
-            </div>
-
-            <div style={{ display: 'flex', gap: '12px', marginTop: '10px' }}>
-              <button onClick={() => setShowEnrollModal(false)} style={{ flex: 1, padding: '12px', background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', borderRadius: '10px', cursor: 'pointer' }}>Cancelar</button>
-              <button onClick={handleSaveCourses} disabled={isSaving} style={{ flex: 1, padding: '12px', background: '#7c3aed', border: 'none', color: '#fff', borderRadius: '10px', cursor: 'pointer' }}>{isSaving ? "Guardando..." : "Guardar Ramos"}</button>
-            </div>
-          </div>
-        </div>
-      )}
-
     </div>
   )
 }

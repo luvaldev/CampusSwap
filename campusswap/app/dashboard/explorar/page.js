@@ -1,225 +1,186 @@
 'use client'
-import { signOut, useSession } from "next-auth/react"
+import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 import {
-  LayoutDashboard, Search, UploadCloud, Shield, LogOut,
-  BookOpen, ChevronRight, ArrowLeft, Star,
-  Building2, GraduationCap, FolderGit2, Compass, ArrowRight
-} from "lucide-react"
+  MagnifyingGlass, Building, GraduationCap, FolderSimple,
+  Compass, ArrowRight, CaretRight
+} from "@phosphor-icons/react"
 
-// Importamos nuestra Base de Datos Dinámica
-import { carrerasDB, cursosDB } from "../../data/database"
-
-/* ─── Mock Data de Facultades UDP ────────────────────── */
 const FACULTADES = [
-  { id: 'fae', nombre: 'Facultad de Administración y Economía', color: '#10b981' },
-  { id: 'fad', nombre: 'Facultad de Arquitectura, Arte y Diseño', color: '#f59e0b' },
-  { id: 'fcs', nombre: 'Facultad de Ciencias Sociales y Humanidades', color: '#ec4899' },
-  { id: 'fcl', nombre: 'Facultad de Comunicación y Letras', color: '#8b5cf6' },
-  { id: 'fde', nombre: 'Facultad de Derecho', color: '#3b82f6' },
-  { id: 'fed', nombre: 'Facultad de Educación', color: '#f43f5e' },
-  { id: 'fic', nombre: 'Facultad de Ingeniería y Ciencias', color: '#7c3aed' }, // Aquí conectaremos la DB
-  { id: 'fme', nombre: 'Facultad de Medicina', color: '#14b8a6' },
-  { id: 'fps', nombre: 'Facultad de Psicología', color: '#06b6d4' },
-  { id: 'fso', nombre: 'Facultad de Salud y Odontología', color: '#0ea5e9' }
-];
+  { id: 'fae', nombre: 'Facultad de Administración y Economía', color: 'oklch(72% 0.15 160)' },
+  { id: 'fad', nombre: 'Facultad de Arquitectura, Arte y Diseño', color: 'oklch(78% 0.15 85)' },
+  { id: 'fcs', nombre: 'Facultad de Ciencias Sociales y Humanidades', color: 'oklch(70% 0.18 340)' },
+  { id: 'fcl', nombre: 'Facultad de Comunicación y Letras', color: 'oklch(65% 0.15 290)' },
+  { id: 'fde', nombre: 'Facultad de Derecho', color: 'oklch(65% 0.12 250)' },
+  { id: 'fed', nombre: 'Facultad de Educación', color: 'oklch(65% 0.18 15)' },
+  { id: 'fic', nombre: 'Facultad de Ingeniería y Ciencias', color: 'var(--brand)' },
+  { id: 'fme', nombre: 'Facultad de Medicina', color: 'oklch(72% 0.12 175)' },
+  { id: 'fps', nombre: 'Facultad de Psicología', color: 'oklch(70% 0.12 200)' },
+  { id: 'fso', nombre: 'Facultad de Salud y Odontología', color: 'oklch(68% 0.1 220)' }
+]
 
+import { carrerasDB, cursosDB } from "../../data/database"
 
 export default function Explorar() {
   const { data: session, status } = useSession()
   const router = useRouter()
   const [mounted, setMounted] = useState(false)
-  const [userCareer, setUserCareer] = useState(null)
   const [searchTerm, setSearchTerm] = useState("")
-
-  // NIVELES DE NAVEGACIÓN
   const [selectedFacultad, setSelectedFacultad] = useState(null)
   const [selectedCarrera, setSelectedCarrera] = useState(null)
 
   useEffect(() => { setMounted(true) }, [])
 
-  // Proteger ruta y cargar datos de usuario
   useEffect(() => {
     if (status === "unauthenticated") router.push('/')
-    if (status === "authenticated") {
-      const savedCareerId = localStorage.getItem("userCareerId")
-      if (savedCareerId) {
-        setUserCareer(carrerasDB.find(c => c.id === savedCareerId))
-      }
-    }
   }, [status, router])
 
   if (status === "loading" || !mounted) {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: '#060410' }}>
-        <div style={{ width: '40px', height: '40px', border: '2px solid rgba(139,92,246,0.2)', borderTop: '2px solid #7c3aed', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
-        <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh' }}>
+        <div className="spinner spinner-lg" />
       </div>
     )
   }
 
-  // FILTROS SEGÚN EL NIVEL DE NAVEGACIÓN
   const filteredFacultades = FACULTADES.filter(f => f.nombre.toLowerCase().includes(searchTerm.toLowerCase()))
-  
-  // Para la demo, solo la 'fic' tiene carreras mapeadas desde tu database.js
   const carrerasDeFacultad = selectedFacultad?.id === 'fic' ? carrerasDB : []
   const filteredCarreras = carrerasDeFacultad.filter(c => c.nombre.toLowerCase().includes(searchTerm.toLowerCase()))
-
   const cursosDeCarrera = selectedCarrera ? cursosDB.filter(curso => curso.carreras.includes(selectedCarrera.id)) : []
   const filteredCursos = cursosDeCarrera.filter(c => c.nombre.toLowerCase().includes(searchTerm.toLowerCase()) || c.id.toLowerCase().includes(searchTerm.toLowerCase()))
 
   return (
-    <>
+    <div style={{ width: '100%' }}>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 'var(--space-8)', gap: 'var(--space-6)' }}>
+        <div style={{ flex: 1 }}>
+          <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-muted)', marginBottom: '4px' }}>Explorar Directorio UDP</p>
+          <h1 className="page-title">
+            {selectedCarrera ? selectedCarrera.nombre : selectedFacultad ? selectedFacultad.nombre : 'Todas las Facultades'}
+          </h1>
 
-      {/* ── Main content ── */}
-      <main style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', padding: '32px 36px', width: '100%' }}>
-        
-        {/* Header y Buscador */}
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifycenter: 'space-between', marginBottom: '32px', gap: '24px' }}>
-          <div style={{ flex: 1 }}>
-            <p style={{ fontSize: '13px', color: '#5c527a', marginBottom: '4px', fontWeight: '300' }}>Explorar Directorio UDP</p>
-            <h1 style={{ fontFamily: "'Syne', sans-serif", fontSize: '32px', fontWeight: '800', color: '#f0ecff', letterSpacing: '-0.5px', lineHeight: 1.1 }}>
-              {selectedCarrera ? selectedCarrera.nombre : selectedFacultad ? selectedFacultad.nombre : 'Todas las Facultades'}
-            </h1>
-            
-            {/* Breadcrumbs */}
-            {(selectedFacultad || selectedCarrera) && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '12px' }}>
-                <button 
-                  onClick={() => { setSelectedFacultad(null); setSelectedCarrera(null); setSearchTerm(""); }}
-                  style={{ background: 'transparent', border: 'none', color: '#8892b0', cursor: 'pointer', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '4px' }}
+          {(selectedFacultad || selectedCarrera) && (
+            <div className="breadcrumb">
+              <button className="breadcrumb-item" onClick={() => { setSelectedFacultad(null); setSelectedCarrera(null); setSearchTerm(""); }}>
+                Facultades
+              </button>
+              <CaretRight size={14} className="breadcrumb-separator" />
+              {selectedFacultad && (
+                <button
+                  className={`breadcrumb-item ${!selectedCarrera ? 'breadcrumb-item-active' : ''}`}
+                  onClick={() => { setSelectedCarrera(null); setSearchTerm(""); }}
                 >
-                   Facultades
+                  {selectedFacultad.id.toUpperCase()}
                 </button>
-                <ChevronRight style={{ width: '14px', height: '14px', color: '#5c527a' }} />
-                
-                {selectedFacultad && (
-                  <button 
-                    onClick={() => { setSelectedCarrera(null); setSearchTerm(""); }}
-                    style={{ background: 'transparent', border: 'none', color: selectedCarrera ? '#8892b0' : '#bb86fc', cursor: 'pointer', fontSize: '13px', fontWeight: selectedCarrera ? 'normal' : 'bold' }}
-                  >
-                     {selectedFacultad.id.toUpperCase()}
-                  </button>
-                )}
-                
-                {selectedCarrera && (
-                  <>
-                    <ChevronRight style={{ width: '14px', height: '14px', color: '#5c527a' }} />
-                    <span style={{ color: '#bb86fc', fontSize: '13px', fontWeight: 'bold' }}>{selectedCarrera.tag}</span>
-                  </>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Barra de Búsqueda */}
-          <div style={{ width: '300px', display: 'flex', alignItems: 'center', gap: '10px', background: 'rgba(26,22,64,0.5)', border: '1px solid rgba(139,92,246,0.2)', padding: '10px 16px', borderRadius: '12px' }}>
-            <Search style={{ width: '18px', height: '18px', color: '#a78bfa' }} />
-            <input 
-              type="text"
-              placeholder={`Buscar ${selectedCarrera ? 'ramos' : selectedFacultad ? 'carreras' : 'facultades'}...`}
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              style={{ flex: 1, background: 'transparent', border: 'none', color: '#f0ecff', fontSize: '14px', outline: 'none' }}
-            />
-          </div>
+              )}
+              {selectedCarrera && (
+                <>
+                  <CaretRight size={14} className="breadcrumb-separator" />
+                  <span className="breadcrumb-item breadcrumb-item-active">{selectedCarrera.tag}</span>
+                </>
+              )}
+            </div>
+          )}
         </div>
 
-        {/* Contenedor de la Grilla Desplazable */}
-        <div style={{ flex: 1, overflowY: 'auto', paddingRight: '8px' }}>
-          
-          {/* NIVEL 1: FACULTADES */}
-          {!selectedFacultad && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '20px' }}>
-              {filteredFacultades.map(fac => (
-                <div 
-                  key={fac.id}
-                  onClick={() => { setSelectedFacultad(fac); setSearchTerm(""); }}
-                  style={{ background: 'rgba(18,16,42,0.6)', border: `1px solid ${fac.color}30`, borderRadius: '16px', padding: '24px', cursor: 'pointer', transition: 'all 0.2s ease', position: 'relative', overflow: 'hidden' }}
-                  onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = `0 8px 30px ${fac.color}15`; e.currentTarget.style.borderColor = `${fac.color}60`; }}
-                  onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.borderColor = `${fac.color}30`; }}
+        {/* Search */}
+        <div style={{ width: 300, display: 'flex', alignItems: 'center', gap: 'var(--space-3)', background: 'var(--surface-2)', border: '1px solid var(--border-default)', padding: 'var(--space-3) var(--space-4)', borderRadius: 'var(--radius-md)' }}>
+          <MagnifyingGlass size={18} color="var(--brand)" />
+          <input
+            type="text"
+            placeholder={`Buscar ${selectedCarrera ? 'ramos' : selectedFacultad ? 'carreras' : 'facultades'}...`}
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            style={{ flex: 1, background: 'transparent', border: 'none', color: 'var(--text-primary)', fontSize: 'var(--text-sm)', outline: 'none', fontFamily: 'var(--font-sans)' }}
+          />
+        </div>
+      </div>
+
+      {/* LEVEL 1: FACULTIES */}
+      {!selectedFacultad && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 'var(--space-5)' }}>
+          {filteredFacultades.map(fac => (
+            <div
+              key={fac.id}
+              onClick={() => { setSelectedFacultad(fac); setSearchTerm(""); }}
+              className="card card-interactive"
+              style={{ position: 'relative', overflow: 'hidden' }}
+            >
+              <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: fac.color }} />
+              <div className="icon-box icon-box-lg" style={{ background: `color-mix(in oklch, ${fac.color} 15%, transparent)`, marginBottom: 'var(--space-4)' }}>
+                <Building size={24} color={fac.color} />
+              </div>
+              <h3 style={{ fontSize: 'var(--text-lg)', fontWeight: 700, lineHeight: 1.3, marginBottom: 'var(--space-2)' }}>{fac.nombre}</h3>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', color: fac.color, fontSize: 'var(--text-sm)', fontWeight: 600 }}>
+                Explorar carreras <ArrowRight size={14} />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* LEVEL 2: CAREERS */}
+      {selectedFacultad && !selectedCarrera && (
+        <>
+          {carrerasDeFacultad.length === 0 ? (
+            <div className="empty-state">
+              <Building size={48} color="var(--text-muted)" style={{ marginBottom: 'var(--space-4)' }} />
+              <p style={{ fontSize: 'var(--text-lg)', fontWeight: 700 }}>Próximamente</p>
+              <p style={{ color: 'var(--text-secondary)', marginTop: 'var(--space-2)' }}>Estamos indexando las carreras y ramos de esta facultad.</p>
+            </div>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 'var(--space-5)' }}>
+              {filteredCarreras.map(carrera => (
+                <div
+                  key={carrera.id}
+                  onClick={() => { setSelectedCarrera(carrera); setSearchTerm(""); }}
+                  className="card card-interactive"
                 >
-                  <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '3px', background: fac.color }} />
-                  <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: `${fac.color}15`, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
-                    <Building2 style={{ width: '24px', height: '24px', color: fac.color }} />
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 'var(--space-4)' }}>
+                    <div className="icon-box icon-box-md" style={{ background: 'var(--brand-wash)' }}>
+                      <GraduationCap size={20} color="var(--brand)" />
+                    </div>
+                    <span className="badge badge-neutral mono">{carrera.tag}</span>
                   </div>
-                  <h3 style={{ fontSize: '18px', fontWeight: 'bold', color: '#f0ecff', lineHeight: 1.3, marginBottom: '8px', fontFamily: "'Syne', sans-serif" }}>{fac.nombre}</h3>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: fac.color, fontSize: '13px', fontWeight: '600' }}>
-                    Explorar carreras <ArrowRight style={{ width: '14px', height: '14px' }} />
-                  </div>
+                  <h3 style={{ fontSize: 'var(--text-base)', fontWeight: 700, lineHeight: 1.3, marginBottom: 'var(--space-3)' }}>{carrera.nombre}</h3>
+                  <p style={{ color: 'var(--brand)', fontSize: 'var(--text-sm)', display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+                    Ver malla de ramos <ArrowRight size={14} />
+                  </p>
                 </div>
               ))}
             </div>
           )}
+        </>
+      )}
 
-          {/* NIVEL 2: CARRERAS */}
-          {selectedFacultad && !selectedCarrera && (
-            <>
-              {carrerasDeFacultad.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '60px 20px', border: '1px dashed rgba(139,92,246,0.2)', borderRadius: '16px' }}>
-                  <Building2 style={{ width: '48px', height: '48px', color: '#5c527a', margin: '0 auto 16px' }} />
-                  <p style={{ color: '#f0ecff', fontSize: '18px', fontWeight: 'bold' }}>Próximamente</p>
-                  <p style={{ color: '#8892b0', marginTop: '8px' }}>Estamos indexando las carreras y ramos de esta facultad.</p>
+      {/* LEVEL 3: COURSES */}
+      {selectedCarrera && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 'var(--space-4)' }}>
+          {filteredCursos.length === 0 ? (
+            <p style={{ color: 'var(--text-secondary)', gridColumn: '1 / -1', textAlign: 'center', padding: 'var(--space-10)' }}>No se encontraron ramos con ese nombre.</p>
+          ) : (
+            filteredCursos.map(curso => (
+              <div
+                key={curso.id}
+                onClick={() => router.push(`/dashboard/curso/${curso.id}`)}
+                className="card card-interactive"
+                style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-4)', padding: 'var(--space-4)' }}
+              >
+                <div className="icon-box icon-box-md" style={{ background: 'var(--brand-wash)' }}>
+                  <FolderSimple size={20} color="var(--brand)" />
                 </div>
-              ) : (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '20px' }}>
-                  {filteredCarreras.map(carrera => (
-                    <div 
-                      key={carrera.id}
-                      onClick={() => { setSelectedCarrera(carrera); setSearchTerm(""); }}
-                      style={{ background: 'rgba(26,22,64,0.5)', border: '1px solid rgba(139,92,246,0.15)', borderRadius: '16px', padding: '24px', cursor: 'pointer', transition: 'all 0.2s' }}
-                      onMouseEnter={e => { e.currentTarget.style.borderColor = '#bb86fc'; e.currentTarget.style.background = 'rgba(124,58,237,0.1)'; }}
-                      onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(139,92,246,0.15)'; e.currentTarget.style.background = 'rgba(26,22,64,0.5)'; }}
-                    >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
-                        <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: 'rgba(124,58,237,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          <GraduationCap style={{ width: '20px', height: '20px', color: '#a78bfa' }} />
-                        </div>
-                        <span style={{ fontSize: '10px', fontWeight: 'bold', background: 'rgba(255,255,255,0.05)', color: '#8892b0', padding: '4px 8px', borderRadius: '6px' }}>{carrera.tag}</span>
-                      </div>
-                      <h3 style={{ fontSize: '16px', fontWeight: 'bold', color: '#f0ecff', lineHeight: 1.3, marginBottom: '12px' }}>{carrera.nombre}</h3>
-                      <p style={{ color: '#a78bfa', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        Ver malla de ramos <ArrowRight style={{ width: '14px', height: '14px' }} />
-                      </p>
-                    </div>
-                  ))}
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <p className="mono" style={{ fontSize: 'var(--text-xs)', color: 'var(--brand)', fontWeight: 700, marginBottom: '2px' }}>{curso.id}</p>
+                  <h4 className="truncate" style={{ fontWeight: 600, fontSize: 'var(--text-sm)' }}>{curso.nombre}</h4>
+                  <p style={{ color: 'var(--text-muted)', fontSize: 'var(--text-xs)', marginTop: '2px' }}>{curso.creditos} Créditos Académicos</p>
                 </div>
-              )}
-            </>
+                <CaretRight size={16} color="var(--text-muted)" />
+              </div>
+            ))
           )}
-
-          {/* NIVEL 3: RAMOS (CURSOS) */}
-          {selectedCarrera && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '16px' }}>
-              {filteredCursos.length === 0 ? (
-                <p style={{ color: '#8892b0', gridColumn: '1 / -1', textAlign: 'center', padding: '40px' }}>No se encontraron ramos con ese nombre.</p>
-              ) : (
-                filteredCursos.map(curso => (
-                  <div 
-                    key={curso.id}
-                    onClick={() => router.push(`/dashboard/curso/${curso.id}`)}
-                    style={{ display: 'flex', alignItems: 'center', gap: '16px', background: 'rgba(18,16,42,0.6)', border: '1px solid rgba(139,92,246,0.1)', padding: '16px', borderRadius: '12px', cursor: 'pointer', transition: 'all 0.2s' }}
-                    onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(139,92,246,0.4)'; e.currentTarget.style.background = 'rgba(26,22,64,0.8)'; }}
-                    onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(139,92,246,0.1)'; e.currentTarget.style.background = 'rgba(18,16,42,0.6)'; }}
-                  >
-                    <div style={{ width: '44px', height: '44px', borderRadius: '10px', background: 'rgba(124,58,237,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                      <FolderGit2 style={{ width: '20px', height: '20px', color: '#bb86fc' }} />
-                    </div>
-                    <div style={{ minWidth: 0, flex: 1 }}>
-                      <p style={{ fontSize: '10px', color: '#a78bfa', fontWeight: 'bold', marginBottom: '2px' }}>{curso.id}</p>
-                      <h4 style={{ color: '#f0ecff', fontWeight: '600', fontSize: '15px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{curso.nombre}</h4>
-                      <p style={{ color: '#5c527a', fontSize: '12px', marginTop: '2px' }}>{curso.creditos} Créditos Académicos</p>
-                    </div>
-                    <ChevronRight style={{ width: '16px', height: '16px', color: '#5c527a' }} />
-                  </div>
-                ))
-              )}
-            </div>
-          )}
-
         </div>
-      </main>
-    </>
+      )}
+    </div>
   )
 }

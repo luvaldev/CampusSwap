@@ -51,65 +51,137 @@ model VerificationToken {
 // ==========================================
 
 model User {
-  id            String    @id @default(cuid())
-  name          String?
-  email         String?   @unique
-  emailVerified DateTime?
-  image         String?   // NextAuth usa 'image' en vez de 'avatar'
-  
-  // Custom fields de CampusSwap
-  role          String    @default("ESTUDIANTE")
-  karma         Int       @default(0)
-  createdAt     DateTime  @default(now())
+  id               String    @id @default(cuid())
+  name             String?
+  email            String?   @unique
+  emailVerified    DateTime?
+  image            String?
 
-  // Relaciones
-  careerId      String?
-  career        Career?   @relation(fields: [careerId], references: [id])
-  documents     Document[]
-  
-  // Relaciones de NextAuth
-  accounts      Account[]
-  sessions      Session[]
+  // CampusSwap fields
+  role             String    @default("ESTUDIANTE") // ESTUDIANTE, TUTOR, ADMIN
+  karma            Int       @default(0)
+  createdAt        DateTime  @default(now())
 
-  lastCareerChange  DateTime?
-  enrolledCourses Course[] @relation("UserCourses")
+  // Onboarding & Cooldown
+  careerId         String?
+  career           Career?   @relation(fields: [careerId], references: [id])
+  lastCareerChange DateTime?
+
+  // Relations
+  documents        Document[]
+  enrolledCourses  Course[]        @relation("UserCourses")
+  messages         ChatMessage[]
+  notifications    Notification[]
+  reportsMade      Report[]        @relation("ReporterUser")
+  reportsReceived  Report[]        @relation("ReportedUser")
+
+  // NextAuth relations
+  accounts         Account[]
+  sessions         Session[]
 }
 
 model Faculty {
-  id        String   @id 
+  id        String   @id
   name      String
   careers   Career[]
 }
 
 model Career {
-  id        String   @id 
+  id        String   @id
   name      String
-  tag       String   
+  tag       String
   facultyId String
   faculty   Faculty  @relation(fields: [facultyId], references: [id])
-  courses   Course[] 
+  courses   Course[]
   users     User[]
 }
 
 model Course {
-  id        String     @id 
-  name      String
-  credits   Int
-  careers   Career[]   
-  documents Document[] 
-  enrolledUsers User[] @relation("UserCourses")
+  id            String        @id
+  name          String
+  credits       Int
+  careers       Career[]
+  documents     Document[]
+  enrolledUsers User[]        @relation("UserCourses")
+  messages      ChatMessage[]
 }
 
+// ==========================================
+// 3. DOCUMENTOS CON CUARENTENA Y SOFT DELETE
+// ==========================================
+
 model Document {
-  id          String   @id @default(uuid())
+  id          String    @id @default(uuid())
   title       String
-  fileUrl     String   
-  size        Float    
-  format      String   
-  status      String   @default("QUARANTINE") 
+  fileUrl     String
+  size        Float     // en MB
+  format      String    // PDF, DOCX, JPG, PNG
+  status      String    @default("QUARANTINE") // QUARANTINE, APPROVED, REJECTED
+  approvals   Int       @default(0)
+  rejections  Int       @default(0)
+  deletedAt   DateTime? // Soft delete — nunca borramos por trazabilidad legal
+
   uploaderId  String
-  uploader    User     @relation(fields: [uploaderId], references: [id])
-  courseId    String
-  course      Course   @relation(fields: [courseId], references: [id])
+  uploader    User      @relation(fields: [uploaderId], references: [id])
+  courseId     String
+  course      Course    @relation(fields: [courseId], references: [id])
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+// ==========================================
+// 4. CHAT EN TIEMPO REAL POR CURSO
+// ==========================================
+
+model ChatMessage {
+  id          String    @id @default(uuid())
+  content     String    @db.Text
+  isMasked    Boolean   @default(false) // Blacklist filter
+  deletedAt   DateTime? // Soft delete
+
+  userId      String
+  user        User      @relation(fields: [userId], references: [id])
+  courseId     String
+  course      Course    @relation(fields: [courseId], references: [id])
+
+  createdAt   DateTime  @default(now())
+
+  @@index([courseId, createdAt])
+}
+
+// ==========================================
+// 5. NOTIFICACIONES
+// ==========================================
+
+model Notification {
+  id          String   @id @default(uuid())
+  type        String   // KARMA_EARNED, DOC_APPROVED, DOC_REJECTED, WARNING
+  title       String
+  message     String
+  isRead      Boolean  @default(false)
+
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime @default(now())
+
+  @@index([userId, isRead])
+}
+
+// ==========================================
+// 6. SISTEMA DE REPORTES
+// ==========================================
+
+model Report {
+  id          String   @id @default(uuid())
+  reason      String   @db.Text
+  status      String   @default("PENDING") // PENDING, RESOLVED, DISMISSED
+
+  reporterId  String
+  reporter    User     @relation("ReporterUser", fields: [reporterId], references: [id])
+  reportedId  String
+  reported    User     @relation("ReportedUser", fields: [reportedId], references: [id])
+
   createdAt   DateTime @default(now())
 }

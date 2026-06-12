@@ -3,9 +3,11 @@ import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 import {
-  Star, Bell, Shield, BookOpen, GraduationCap, ChevronRight,
-  Users, FileText, Activity, Clock, BookMarked, Plus
-} from "lucide-react"
+  Star, Bell, Shield, BookOpen, GraduationCap, CaretRight,
+  Users, FileText, Lightning, Clock, BookBookmark, Plus,
+  MagnifyingGlass, CheckCircle, WarningCircle
+} from "@phosphor-icons/react"
+import CustomSelect from "../components/CustomSelect"
 
 export default function DashboardPage() {
   const { data: session } = useSession()
@@ -15,16 +17,19 @@ export default function DashboardPage() {
   const [facultades, setFacultades] = useState([])
   const [showOnboarding, setShowOnboarding] = useState(false)
   const [showEnrollModal, setShowEnrollModal] = useState(false)
-  
-  // Estados para formularios
+
   const [selectedFaculty, setSelectedFaculty] = useState(null)
   const [selectedCareer, setSelectedCareer] = useState(null)
-  const [selectedCourses, setSelectedCourses] = useState([]) // Array de IDs de ramos
+  const [selectedCourses, setSelectedCourses] = useState([])
   const [isSaving, setIsSaving] = useState(false)
+  const [courseSearch, setCourseSearch] = useState("")
+
+  const [notifications, setNotifications] = useState([])
+  const [unreadCount, setUnreadCount] = useState(0)
+  const [showNotifications, setShowNotifications] = useState(false)
 
   useEffect(() => {
     if (session?.user) {
-      // Cargar resumen
       fetch("/api/dashboard/summary")
         .then(res => res.json())
         .then(d => {
@@ -34,12 +39,18 @@ export default function DashboardPage() {
             setSelectedCourses(d.user.enrolledCourses.map(c => c.id))
           }
         })
-      // Cargar facultades (por si necesita onboarding)
       fetch("/api/faculties").then(res => res.json()).then(f => setFacultades(f))
+      fetch("/api/notifications")
+        .then(res => res.json())
+        .then(n => {
+          if (n.notifications) {
+            setNotifications(n.notifications)
+            setUnreadCount(n.unreadCount)
+          }
+        })
     }
   }, [session])
 
-  // --- FUNCIONES DE GUARDADO ---
   const handleSaveCareer = async () => {
     if (!selectedCareer) return
     setIsSaving(true)
@@ -65,204 +76,416 @@ export default function DashboardPage() {
   }
 
   const toggleCourse = (courseId) => {
-    setSelectedCourses(prev => 
+    setSelectedCourses(prev =>
       prev.includes(courseId) ? prev.filter(id => id !== courseId) : [...prev, courseId]
     )
   }
 
+  const handleMarkAsRead = async (id = null) => {
+    const body = id ? { notificationIds: [id] } : { markAll: true }
+    await fetch("/api/notifications", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body)
+    })
+    
+    if (id) {
+      setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n))
+      setUnreadCount(prev => Math.max(0, prev - 1))
+    } else {
+      setNotifications(prev => prev.map(n => ({ ...n, isRead: true })))
+      setUnreadCount(0)
+    }
+  }
+
+  const normalizeText = (text) => text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase()
+
+  const filteredCourses = data?.user?.career?.courses?.filter(c => 
+    normalizeText(c.name).includes(normalizeText(courseSearch)) || 
+    normalizeText(c.id).includes(normalizeText(courseSearch))
+  )
+
   return (
     <div style={{ width: '100%', display: 'flex', flexDirection: 'column' }}>
-      
-      {/* HEADER: Carga instantáneo con datos de sesión */}
-      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
+
+      {/* HEADER */}
+      <header className="page-header">
         <div>
-          <h1 style={{ fontSize: '26px', fontWeight: '700', color: '#fff', marginBottom: '4px', fontFamily: "'Syne', sans-serif" }}>
-            ¡Hola, {session?.user?.name?.split(" ")[0] || "Estudiante"}!
+          <h1 className="page-title">
+            ¡Hola, {session?.user?.name ? session.user.name.split(" ")[0].charAt(0).toUpperCase() + session.user.name.split(" ")[0].slice(1).toLowerCase() : "Estudiante"}!
           </h1>
-          <p style={{ color: '#94a3b8', fontSize: '14px' }}>
+          <p className="page-subtitle">
             {data?.user?.career?.name || "Cargando tu información..."}
           </p>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <div style={{ background: 'rgba(255,255,255,0.03)', padding: '10px', borderRadius: '50%', border: '1px solid rgba(255,255,255,0.06)' }}>
-            <Bell style={{ width: '18px', height: '18px', color: '#94a3b8' }} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-4)' }}>
+          <div style={{ position: 'relative' }}>
+            <button 
+              onClick={() => setShowNotifications(!showNotifications)}
+              style={{ background: 'var(--surface-2)', padding: 'var(--space-3)', borderRadius: '50%', border: '1px solid var(--border-subtle)', cursor: 'pointer' }}
+            >
+              <Bell size={18} color="var(--text-secondary)" />
+              {unreadCount > 0 && (
+                <span style={{ position: 'absolute', top: 0, right: 0, background: 'var(--brand)', color: 'var(--text-on-brand)', fontSize: '10px', fontWeight: 'bold', width: 16, height: 16, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  {unreadCount}
+                </span>
+              )}
+            </button>
+            
+            {/* Notifications Dropdown */}
+            {showNotifications && (
+              <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 'var(--space-2)', background: 'var(--surface-0)', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-md)', width: 320, zIndex: 'var(--z-dropdown)', boxShadow: 'var(--shadow-lg)' }}>
+                <div style={{ padding: 'var(--space-3) var(--space-4)', borderBottom: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontWeight: 600, fontSize: 'var(--text-sm)' }}>Notificaciones</span>
+                  {unreadCount > 0 && (
+                    <button onClick={() => handleMarkAsRead()} style={{ fontSize: 'var(--text-xs)', color: 'var(--brand)', background: 'transparent', border: 'none', cursor: 'pointer' }}>
+                      Marcar todo como leído
+                    </button>
+                  )}
+                </div>
+                <div style={{ maxHeight: 300, overflowY: 'auto' }}>
+                  {notifications.length === 0 ? (
+                    <div style={{ padding: 'var(--space-6)', textAlign: 'center', color: 'var(--text-muted)', fontSize: 'var(--text-sm)' }}>
+                      No tienes notificaciones
+                    </div>
+                  ) : (
+                    notifications.map(n => (
+                      <div 
+                        key={n.id} 
+                        onClick={() => !n.isRead && handleMarkAsRead(n.id)}
+                        style={{ padding: 'var(--space-3) var(--space-4)', borderBottom: '1px solid var(--border-subtle)', background: n.isRead ? 'transparent' : 'var(--surface-1)', cursor: n.isRead ? 'default' : 'pointer', transition: 'background var(--duration-fast)' }}
+                      >
+                        <p style={{ fontSize: 'var(--text-sm)', fontWeight: n.isRead ? 400 : 600, marginBottom: '4px' }}>{n.title}</p>
+                        <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)' }}>{n.message}</p>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
           </div>
-          <img src={session?.user?.image} alt="Avatar" style={{ width: '40px', height: '40px', borderRadius: '50%', border: '2px solid #8b5cf6' }} />
+          <button 
+            onClick={() => router.push('/dashboard/perfil')}
+            style={{ padding: 0, border: 'none', background: 'transparent', cursor: 'pointer' }}
+          >
+            <img
+              src={session?.user?.image}
+              alt={`Avatar de ${session?.user?.name || 'Estudiante'}`}
+              style={{ width: 40, height: 40, borderRadius: '50%', border: '2px solid var(--brand)', objectFit: 'cover' }}
+            />
+          </button>
         </div>
       </header>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '2.2fr 1fr', gap: '28px', width: '100%', alignItems: 'start' }}>
-        
-        {/* COLUMNA IZQUIERDA */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
-          
-          {/* MÉTRICAS */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
-            <div style={{ background: 'rgba(26,22,64,0.4)', border: '1px solid rgba(139,92,246,0.15)', padding: '20px', borderRadius: '16px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
-                <Star style={{ color: '#fbbf24', width: '20px', height: '20px' }} />
-                <h4 style={{ color: '#94a3b8', fontSize: '13px', margin: 0 }}>Mis Karma Points</h4>
+      <div className="dashboard-grid">
+        {/* LEFT COLUMN */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-8)' }}>
+
+          {/* METRICS */}
+          <div className="metrics-grid">
+            <div className="stat-card">
+              <div className="icon-box icon-box-md" style={{ background: 'var(--karma-subtle)' }}>
+                <Star size={20} weight="fill" color="var(--karma)" />
               </div>
-              <p style={{ color: '#fff', fontSize: '26px', fontWeight: '700', margin: 0 }}>
-                {data ? data.user?.karma : "..."} <span style={{ fontSize: '14px', color: '#a78bfa', fontWeight: '400' }}>pts</span>
-              </p>
+              <div>
+                <p className="stat-value">
+                  {data ? data.user?.karma : "..."} <span className="stat-unit">pts</span>
+                </p>
+                <p className="stat-label">Mis Karma Points</p>
+              </div>
             </div>
 
-            <div style={{ background: 'rgba(26,22,64,0.4)', border: '1px solid rgba(139,92,246,0.15)', padding: '20px', borderRadius: '16px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
-                <Users style={{ color: '#3b82f6', width: '20px', height: '20px' }} />
-                <h4 style={{ color: '#94a3b8', fontSize: '13px', margin: 0 }}>Comunidad</h4>
+            <div className="stat-card">
+              <div className="icon-box icon-box-md" style={{ background: 'var(--info-subtle)' }}>
+                <Users size={20} weight="fill" color="var(--info)" />
               </div>
-              <p style={{ color: '#fff', fontSize: '26px', fontWeight: '700', margin: 0 }}>
-                {data ? data.stats?.totalUsers : "..."} <span style={{ fontSize: '14px', color: '#60a5fa', fontWeight: '400' }}>alumnos</span>
-              </p>
+              <div>
+                <p className="stat-value">
+                  {data ? data.stats?.totalUsers : "..."} <span className="stat-unit">alumnos</span>
+                </p>
+                <p className="stat-label">Comunidad</p>
+              </div>
             </div>
 
-            <div style={{ background: 'rgba(26,22,64,0.4)', border: '1px solid rgba(139,92,246,0.15)', padding: '20px', borderRadius: '16px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
-                <FileText style={{ color: '#10b981', width: '20px', height: '20px' }} />
-                <h4 style={{ color: '#94a3b8', fontSize: '13px', margin: 0 }}>Biblioteca</h4>
+            <div className="stat-card">
+              <div className="icon-box icon-box-md" style={{ background: 'var(--success-subtle)' }}>
+                <FileText size={20} weight="fill" color="var(--success)" />
               </div>
-              <p style={{ color: '#fff', fontSize: '26px', fontWeight: '700', margin: 0 }}>
-                {data ? data.stats?.totalDocs : "..."} <span style={{ fontSize: '14px', color: '#34d399', fontWeight: '400' }}>apuntes</span>
-              </p>
+              <div>
+                <p className="stat-value">
+                  {data ? data.stats?.totalDocs : "..."} <span className="stat-unit">apuntes</span>
+                </p>
+                <p className="stat-label">Biblioteca</p>
+              </div>
             </div>
           </div>
 
-          {/* RAMOS INSCRITOS */}
-          <div style={{ background: 'rgba(20,16,47,0.4)', border: '1px solid rgba(139,92,246,0.08)', padding: '24px', borderRadius: '20px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <BookMarked style={{ width: '20px', height: '20px', color: '#c084fc' }} />
-                <h3 style={{ color: '#fff', fontSize: '18px', fontWeight: '600', margin: 0 }}>Mis Asignaturas Inscritas</h3>
+          {/* ENROLLED COURSES */}
+          <div className="card">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-5)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
+                <BookBookmark size={20} weight="fill" color="var(--brand)" />
+                <h3 style={{ fontSize: 'var(--text-lg)', fontWeight: 600 }}>Mis Asignaturas Inscritas</h3>
               </div>
-              <button 
-                onClick={() => setShowEnrollModal(true)}
-                style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(124,58,237,0.1)', color: '#a78bfa', border: '1px solid rgba(124,58,237,0.3)', padding: '6px 12px', borderRadius: '8px', fontSize: '12px', cursor: 'pointer', transition: 'all 0.2s' }}
-              >
-                <Plus style={{ width: '14px', height: '14px' }} /> Gestionar
+              <button onClick={() => setShowEnrollModal(true)} className="btn btn-secondary btn-sm">
+                <Plus size={14} /> Gestionar
               </button>
             </div>
-            
+
             {!data ? (
-               <p style={{ color: '#64748b', fontSize: '14px' }}>Cargando asignaturas...</p>
+              <div className="metrics-grid">
+                {[1,2,3,4].map(i => <div key={i} className="skeleton" style={{ height: 60 }} />)}
+              </div>
             ) : data.user?.enrolledCourses?.length > 0 ? (
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <div className="courses-grid">
                 {data.user.enrolledCourses.map((ramo) => (
-                  <div key={ramo.id} onClick={() => router.push(`/dashboard/curso/${ramo.id}`)} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 18px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '12px', cursor: 'pointer' }}>
+                  <div
+                    key={ramo.id}
+                    onClick={() => router.push(`/dashboard/curso/${ramo.id}`)}
+                    className="card card-interactive"
+                    style={{ padding: 'var(--space-4) var(--space-5)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                  >
                     <div>
-                      <p style={{ color: '#f1f5f9', fontSize: '14px', fontWeight: '500', margin: '0 0 4px 0' }}>{ramo.name}</p>
-                      <span style={{ color: '#64748b', fontSize: '11px', fontWeight: '600' }}>{ramo.id} • {ramo.credits} Créditos</span>
+                      <p style={{ fontSize: 'var(--text-sm)', fontWeight: 500, marginBottom: '4px' }}>{ramo.name}</p>
+                      <span className="mono" style={{ color: 'var(--text-muted)', fontSize: 'var(--text-xs)', fontWeight: 600 }}>
+                        {ramo.id} · {ramo.credits} Créditos
+                      </span>
                     </div>
-                    <ChevronRight style={{ width: '16px', height: '16px', color: '#475569' }} />
+                    <CaretRight size={16} color="var(--text-muted)" />
                   </div>
                 ))}
               </div>
             ) : (
-              <div style={{ textAlign: 'center', padding: '20px', border: '1px dashed rgba(255,255,255,0.1)', borderRadius: '12px' }}>
-                <p style={{ color: '#94a3b8', fontSize: '14px', marginBottom: '12px' }}>No tienes asignaturas inscritas este semestre.</p>
-                <button onClick={() => setShowEnrollModal(true)} style={{ background: '#7c3aed', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: '8px', fontSize: '13px', cursor: 'pointer' }}>Inscribir Ramos Ahora</button>
+              <div className="empty-state">
+                <p style={{ color: 'var(--text-secondary)', fontSize: 'var(--text-sm)', marginBottom: 'var(--space-4)' }}>
+                  No tienes asignaturas inscritas este semestre.
+                </p>
+                <button onClick={() => setShowEnrollModal(true)} className="btn btn-primary">
+                  Inscribir Ramos Ahora
+                </button>
               </div>
             )}
           </div>
         </div>
 
-        {/* COLUMNA DERECHA */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          
-          <div style={{ background: 'rgba(245,158,11,0.05)', border: '1px solid rgba(245,158,11,0.15)', borderRadius: '16px', padding: '20px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
-              <Shield style={{ width: '18px', height: '18px', color: '#f59e0b' }} />
-              <h3 style={{ fontSize: '14px', fontWeight: '600', color: '#fcd34d', margin: 0 }}>Sistema de Cuarentena</h3>
+        {/* RIGHT COLUMN */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)' }}>
+
+          {/* Quarantine card */}
+          <div className="card" style={{ background: 'var(--warning-subtle)', borderColor: 'var(--border-default)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-3)' }}>
+              <Shield size={18} weight="fill" color="var(--warning)" />
+              <h3 style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--text-primary)' }}>Sistema de Cuarentena</h3>
             </div>
-            <p style={{ fontSize: '12px', color: '#fde68a', lineHeight: 1.6, margin: '0 0 14px 0' }}>
-              Asegura la calidad académica revisando apuntes. Obtén <strong style={{ color: '#fff' }}>+10 Karma</strong> por moderación.
+            <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: 'var(--space-4)' }}>
+              Asegura la calidad académica revisando apuntes. Obtén <strong style={{ color: 'var(--text-primary)' }}>+10 Karma</strong> por moderación.
             </p>
-            <button onClick={() => router.push('/dashboard/moderacion')} style={{ width: '100%', padding: '9px', borderRadius: '8px', background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.2)', color: '#fef08a', fontSize: '12px', fontWeight: '600', cursor: 'pointer' }}>
+            <button onClick={() => router.push('/dashboard/moderacion')} className="btn btn-secondary btn-sm btn-full">
               Panel de Moderación
             </button>
           </div>
 
-          <div style={{ background: 'rgba(13,8,32,0.4)', border: '1px solid rgba(255,255,255,0.04)', borderRadius: '16px', padding: '20px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
-              <Activity style={{ width: '16px', height: '16px', color: '#a78bfa' }} />
-              <h3 style={{ fontSize: '14px', fontWeight: '600', color: '#f1f5f9', margin: 0 }}>Actividad Reciente</h3>
+          {/* Recent activity */}
+          <div className="card">
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-4)' }}>
+              <Lightning size={16} weight="fill" color="var(--brand)" />
+              <h3 style={{ fontSize: 'var(--text-sm)', fontWeight: 600 }}>Actividad Reciente</h3>
             </div>
-            
+
             {!data ? (
-               <p style={{ color: '#64748b', fontSize: '12px' }}>Buscando actividad...</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+                {[1,2,3].map(i => <div key={i} className="skeleton" style={{ height: 40 }} />)}
+              </div>
             ) : data.recentActivity?.length > 0 ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
                 {data.recentActivity.map((act) => (
-                  <div key={act.id} style={{ display: 'flex', gap: '12px', alignItems: 'start' }}>
-                    <div style={{ background: 'rgba(139,92,246,0.1)', padding: '6px', borderRadius: '8px', color: '#a78bfa', marginTop: '2px' }}><Clock style={{ width: '12px', height: '12px' }} /></div>
+                  <div key={act.id} style={{ display: 'flex', gap: 'var(--space-3)', alignItems: 'start' }}>
+                    <div className="icon-box icon-box-sm" style={{ background: 'var(--brand-wash)', marginTop: '2px' }}>
+                      <Clock size={12} color="var(--brand)" />
+                    </div>
                     <div>
-                      <p style={{ color: '#e2e8f0', fontSize: '12px', fontWeight: '500', margin: '0 0 2px 0' }}>{act.text}</p>
-                      <span style={{ color: '#64748b', fontSize: '10px' }}>{act.sub}</span>
+                      <p style={{ fontSize: 'var(--text-xs)', fontWeight: 500, marginBottom: '2px' }}>{act.text}</p>
+                      <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>{act.sub}</span>
                     </div>
                   </div>
                 ))}
               </div>
             ) : (
-              <p style={{ color: '#64748b', fontSize: '13px', fontStyle: 'italic' }}>Aún no hay actividad reciente en la plataforma.</p>
+              <p style={{ color: 'var(--text-muted)', fontSize: 'var(--text-sm)', fontStyle: 'italic' }}>
+                Aún no hay actividad reciente en la plataforma.
+              </p>
             )}
           </div>
         </div>
       </div>
 
-      {/* MODAL 1: ONBOARDING (Elegir Carrera) */}
+      {/* MODAL: ONBOARDING */}
       {showOnboarding && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(3, 2, 9, 0.85)', backdropFilter: 'blur(12px)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 9999 }}>
-          <div style={{ width: '100%', maxWidth: '480px', background: '#0b081e', border: '1px solid rgba(139,92,246,0.2)', borderRadius: '24px', padding: '36px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            <h2 style={{ fontSize: '22px', color: '#fff', textAlign: 'center' }}>Bienvenido a CampusSwap</h2>
-            <p style={{ color: '#94a3b8', fontSize: '14px', textAlign: 'center' }}>Selecciona tu facultad y carrera para continuar.</p>
-            
-            <select onChange={(e) => { const fac = facultades.find(f => f.id === e.target.value); setSelectedFaculty(fac); setSelectedCareer(null); }} style={{ padding: '12px', background: '#110d2c', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '10px', color: '#fff' }}>
-              <option value="">-- Facultad --</option>
-              {facultades.map(fac => <option key={fac.id} value={fac.id}>{fac.name}</option>)}
-            </select>
+        <div className="modal-backdrop" style={{ backdropFilter: 'blur(8px)', background: 'oklch(0% 0 0 / 0.7)' }}>
+          <div className="modal" style={{ maxWidth: 500, padding: 'var(--space-8)' }}>
+            <div style={{ textAlign: 'center', marginBottom: 'var(--space-6)' }}>
+              <GraduationCap size={48} weight="fill" color="var(--brand)" style={{ margin: '0 auto var(--space-4)' }} />
+              <h2 style={{ fontSize: 'var(--text-2xl)', fontWeight: 800, marginBottom: 'var(--space-2)' }}>Bienvenido a CampusSwap</h2>
+              <p style={{ color: 'var(--text-secondary)', fontSize: 'var(--text-sm)', lineHeight: 'var(--leading-relaxed)' }}>
+                Para personalizar tu experiencia y mostrarte los apuntes relevantes, necesitamos saber tu especialidad.
+              </p>
+            </div>
 
-            {selectedFaculty && (
-              <select onChange={(e) => setSelectedCareer(selectedFaculty.careers.find(c => c.id === e.target.value))} style={{ padding: '12px', background: '#110d2c', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '10px', color: '#fff' }}>
-                <option value="">-- Carrera --</option>
-                {selectedFaculty.careers.map(car => <option key={car.id} value={car.id}>{car.name}</option>)}
-              </select>
-            )}
-
-            <button onClick={handleSaveCareer} disabled={!selectedCareer || isSaving} style={{ padding: '14px', background: selectedCareer ? '#7c3aed' : '#333', color: '#fff', borderRadius: '10px', border: 'none', cursor: selectedCareer ? 'pointer' : 'not-allowed' }}>
-              {isSaving ? "Guardando..." : "Comenzar"}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL 2: GESTIÓN DE RAMOS (Inscripción) */}
-      {showEnrollModal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(3, 2, 9, 0.85)', backdropFilter: 'blur(12px)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 9999 }}>
-          <div style={{ width: '100%', maxWidth: '600px', background: '#0b081e', border: '1px solid rgba(139,92,246,0.2)', borderRadius: '24px', padding: '36px', display: 'flex', flexDirection: 'column', gap: '20px', maxHeight: '80vh' }}>
-            <h2 style={{ fontSize: '20px', color: '#fff' }}>Inscribe tus Asignaturas</h2>
-            <p style={{ color: '#94a3b8', fontSize: '13px' }}>Selecciona los ramos que estás cursando actualmente. Puedes modificarlos el próximo semestre.</p>
-            
-            <div style={{ overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '10px', paddingRight: '10px' }}>
-              {data?.user?.career?.courses?.map(course => (
-                <label key={course.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', background: 'rgba(255,255,255,0.03)', padding: '12px', borderRadius: '10px', cursor: 'pointer', border: selectedCourses.includes(course.id) ? '1px solid #7c3aed' : '1px solid transparent' }}>
-                  <input type="checkbox" checked={selectedCourses.includes(course.id)} onChange={() => toggleCourse(course.id)} style={{ accentColor: '#7c3aed', width: '18px', height: '18px' }} />
-                  <div>
-                    <p style={{ color: '#fff', fontSize: '14px', margin: 0 }}>{course.name}</p>
-                    <span style={{ color: '#64748b', fontSize: '11px' }}>{course.id}</span>
-                  </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+              <div>
+                <label style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: 'var(--space-2)' }}>
+                  ¿A qué facultad perteneces?
                 </label>
-              ))}
-            </div>
+                <CustomSelect
+                  options={facultades.map(fac => ({ value: fac.id, label: fac.name }))}
+                  value={selectedFaculty?.id || ""}
+                  onChange={(val) => {
+                    const fac = facultades.find(f => f.id === val);
+                    setSelectedFaculty(fac);
+                    setSelectedCareer(null);
+                  }}
+                  placeholder="Selecciona tu Facultad..."
+                />
+              </div>
 
-            <div style={{ display: 'flex', gap: '12px', marginTop: '10px' }}>
-              <button onClick={() => setShowEnrollModal(false)} style={{ flex: 1, padding: '12px', background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', borderRadius: '10px', cursor: 'pointer' }}>Cancelar</button>
-              <button onClick={handleSaveCourses} disabled={isSaving} style={{ flex: 1, padding: '12px', background: '#7c3aed', border: 'none', color: '#fff', borderRadius: '10px', cursor: 'pointer' }}>{isSaving ? "Guardando..." : "Guardar Ramos"}</button>
+              {selectedFaculty && (
+                <div style={{ animation: 'fade-in 0.3s ease-out' }}>
+                  <label style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: 'var(--space-2)' }}>
+                    ¿Cuál es tu carrera?
+                  </label>
+                  <CustomSelect
+                    options={selectedFaculty.careers.map(car => ({ value: car.id, label: car.name }))}
+                    value={selectedCareer?.id || ""}
+                    onChange={(val) => setSelectedCareer(selectedFaculty.careers.find(c => c.id === val))}
+                    placeholder="Selecciona tu Carrera..."
+                  />
+                </div>
+              )}
+
+              <button
+                onClick={handleSaveCareer}
+                disabled={!selectedCareer || isSaving}
+                className="btn btn-primary btn-full"
+                style={{ marginTop: 'var(--space-4)', padding: 'var(--space-4)', fontSize: 'var(--text-base)' }}
+              >
+                {isSaving ? "Configurando tu perfil..." : "Comenzar mi viaje académico"}
+              </button>
             </div>
           </div>
         </div>
       )}
 
+      {/* MODAL: ENROLL */}
+      {showEnrollModal && (
+        <div className="modal-backdrop" style={{ backdropFilter: 'blur(4px)', background: 'oklch(0% 0 0 / 0.5)' }}>
+          <div className="modal modal-lg" style={{ maxWidth: 600, display: 'flex', flexDirection: 'column', maxHeight: '85vh' }}>
+            <div style={{ padding: '0 0 var(--space-5)', borderBottom: '1px solid var(--border-subtle)', marginBottom: 'var(--space-4)' }}>
+              <h2 style={{ fontSize: 'var(--text-xl)', fontWeight: 800, marginBottom: 'var(--space-2)' }}>Inscribe tus Asignaturas</h2>
+              <p style={{ color: 'var(--text-secondary)', fontSize: 'var(--text-sm)' }}>
+                Selecciona los ramos que estás cursando para añadirlos a tu dashboard rápido.
+              </p>
+            </div>
+
+            <div style={{ position: 'relative', marginBottom: 'var(--space-4)' }}>
+              <MagnifyingGlass size={18} color="var(--text-muted)" style={{ position: 'absolute', left: 'var(--space-3)', top: '50%', transform: 'translateY(-50%)' }} />
+              <input 
+                type="text" 
+                placeholder="Buscar por código o nombre del ramo..." 
+                value={courseSearch}
+                onChange={(e) => setCourseSearch(e.target.value)}
+                className="input"
+                style={{ paddingLeft: 'var(--space-8)', width: '100%', background: 'var(--surface-1)' }}
+              />
+            </div>
+
+            <div style={{ overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: 'var(--space-3)', paddingRight: 'var(--space-2)' }}>
+              {filteredCourses?.length === 0 ? (
+                <div style={{ padding: 'var(--space-8)', textAlign: 'center', color: 'var(--text-muted)' }}>
+                  No se encontraron asignaturas que coincidan con tu búsqueda.
+                </div>
+              ) : (
+                filteredCourses?.map(course => (
+                  <label
+                    key={course.id}
+                    onClick={() => toggleCourse(course.id)}
+                    className="card card-interactive"
+                    style={{
+                      padding: 'var(--space-4)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 'var(--space-4)',
+                      cursor: 'pointer',
+                      borderWidth: '2px',
+                      borderColor: selectedCourses.includes(course.id) ? 'var(--brand)' : 'var(--border-subtle)',
+                      background: selectedCourses.includes(course.id) ? 'color-mix(in oklch, var(--brand) 5%, transparent)' : 'var(--surface-0)',
+                      transition: 'all var(--duration-fast)',
+                    }}
+                  >
+                    <div style={{ 
+                      width: 24, height: 24, borderRadius: 'var(--radius-sm)', 
+                      border: `2px solid ${selectedCourses.includes(course.id) ? 'var(--brand)' : 'var(--border-default)'}`,
+                      background: selectedCourses.includes(course.id) ? 'var(--brand)' : 'transparent',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center'
+                    }}>
+                      {selectedCourses.includes(course.id) && <CheckCircle size={16} weight="bold" color="var(--text-on-brand)" />}
+                    </div>
+                    <div>
+                      <p style={{ fontSize: 'var(--text-base)', fontWeight: 600, color: 'var(--text-primary)' }}>{course.name}</p>
+                      <div style={{ display: 'flex', gap: 'var(--space-3)', marginTop: '4px' }}>
+                        <span className="badge badge-neutral mono" style={{ fontSize: 'var(--text-xs)' }}>{course.id}</span>
+                        <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)' }}>{course.credits} Créditos</span>
+                      </div>
+                    </div>
+                  </label>
+                ))
+              )}
+            </div>
+
+            <div style={{ display: 'flex', gap: 'var(--space-3)', marginTop: 'var(--space-5)', paddingTop: 'var(--space-4)', borderTop: '1px solid var(--border-subtle)' }}>
+              <button onClick={() => setShowEnrollModal(false)} className="btn btn-secondary" style={{ flex: 1, padding: 'var(--space-4)' }}>
+                Cancelar
+              </button>
+              <button onClick={handleSaveCourses} disabled={isSaving} className="btn btn-primary" style={{ flex: 1, padding: 'var(--space-4)' }}>
+                {isSaving ? "Guardando..." : `Guardar Ramos (${selectedCourses.length})`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <style>{`
+        .page-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          gap: var(--space-4);
+          flex-wrap: wrap;
+        }
+        .dashboard-grid {
+          display: grid;
+          grid-template-columns: 2.2fr 1fr;
+          gap: var(--space-8);
+          width: 100%;
+          align-items: start;
+        }
+        .metrics-grid {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: var(--space-4);
+        }
+        .courses-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: var(--space-3);
+        }
+        @media (max-width: 1024px) {
+          .dashboard-grid { grid-template-columns: 1fr; }
+        }
+        @media (max-width: 768px) {
+          .metrics-grid { grid-template-columns: 1fr; }
+          .courses-grid { grid-template-columns: 1fr; }
+        }
+      `}</style>
     </div>
   )
 }
