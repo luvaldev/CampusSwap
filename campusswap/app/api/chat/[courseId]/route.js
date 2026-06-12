@@ -44,7 +44,14 @@ export async function GET(request, { params }) {
       },
       include: {
         user: {
-          select: { id: true, name: true, image: true }
+          select: { 
+            id: true, 
+            name: true, 
+            image: true, 
+            nickname: true, 
+            karma: true, 
+            career: { select: { name: true } } 
+          }
         }
       },
       orderBy: { createdAt: "asc" },
@@ -115,7 +122,14 @@ export async function POST(request, { params }) {
       },
       include: {
         user: {
-          select: { id: true, name: true, image: true }
+          select: { 
+            id: true, 
+            name: true, 
+            image: true, 
+            nickname: true, 
+            karma: true, 
+            career: { select: { name: true } } 
+          }
         }
       }
     })

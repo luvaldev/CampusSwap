@@ -126,7 +126,7 @@ export default function Moderacion() {
       </div>
 
       {/* Stats */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 'var(--space-4)', marginBottom: 'var(--space-8)' }}>
+      <div className="metrics-grid" style={{ marginBottom: 'var(--space-8)' }}>
         <StatCard icon={WarningCircle} label="Documentos en espera" value={files.length.toString()} color="var(--warning)" />
         <StatCard icon={Star} label="Karma ganado hoy" value={`+${karmaGained}`} sub="Sumado a tu perfil" color="var(--karma)" />
         <StatCard icon={Shield} label="Tu nivel de Auditor" value="Rango Bronce" sub="Próximo rango a los 200 pts" color="var(--success)" />
@@ -149,13 +149,13 @@ export default function Moderacion() {
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
             {files.map(file => (
-              <div key={file.id} className="file-row" style={{ flexWrap: 'wrap' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-4)', flex: 1, minWidth: 0 }}>
-                  <div className="icon-box icon-box-md" style={{ background: 'var(--warning-subtle)' }}>
+              <div key={file.id} className="file-row file-row-mobile" style={{ flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-4)', flex: 1, minWidth: 0, width: '100%' }}>
+                  <div className="icon-box icon-box-md" style={{ background: 'var(--warning-subtle)', flexShrink: 0 }}>
                     <FileText size={18} color="var(--warning)" />
                   </div>
                   <div style={{ minWidth: 0 }}>
-                    <h4 className="truncate" style={{ fontWeight: 600, fontSize: 'var(--text-sm)' }} title={file.title}>{file.title}</h4>
+                    <h4 className="truncate" style={{ fontWeight: 600, fontSize: 'var(--text-sm)', maxWidth: '100%' }} title={file.title}>{file.title}</h4>
                     <p style={{ color: 'var(--text-muted)', fontSize: 'var(--text-xs)', marginTop: '2px' }}>
                       <span className="mono" style={{ color: 'var(--brand)', fontWeight: 600 }}>
                         {file.course?.name || 'Curso'} ({file.course?.id || ''})
@@ -164,7 +164,7 @@ export default function Moderacion() {
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-4)', flexShrink: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--space-4)', width: '100%' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
                     <Clock size={13} color="var(--text-muted)" />
                     <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
@@ -174,18 +174,18 @@ export default function Moderacion() {
                   <span className="badge badge-neutral mono">{file.format} · {file.size} MB</span>
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
+                <div className="flex-col-mobile" style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', width: '100%' }}>
                   <button
                     onClick={() => handleModerate(file.id, "reject", file.title)}
                     disabled={processingId === file.id}
-                    className="btn btn-danger btn-sm"
+                    className="btn btn-danger btn-sm w-full-mobile"
                   >
                     Rechazar
                   </button>
                   <button
                     onClick={() => handleModerate(file.id, "approve", file.title)}
                     disabled={processingId === file.id}
-                    className="btn btn-success btn-sm"
+                    className="btn btn-success btn-sm w-full-mobile"
                   >
                     {processingId === file.id ? <div className="spinner spinner-sm" /> : 'Aprobar'}
                   </button>

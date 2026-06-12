@@ -28,6 +28,9 @@ export default function DashboardPage() {
   const [unreadCount, setUnreadCount] = useState(0)
   const [showNotifications, setShowNotifications] = useState(false)
 
+  const [careerCourses, setCareerCourses] = useState([])
+  const [loadingCourses, setLoadingCourses] = useState(false)
+
   useEffect(() => {
     if (session?.user?.role === 'GUEST') {
       router.replace('/dashboard/explorar')
@@ -38,12 +41,14 @@ export default function DashboardPage() {
         .then(res => res.json())
         .then(d => {
           setData(d)
-          if (d.user && !d.user.careerId && session?.user?.role !== 'GUEST') setShowOnboarding(true)
+          if (d.user && !d.user.careerId && session?.user?.role !== 'GUEST') {
+            setShowOnboarding(true)
+            fetch("/api/faculties").then(res => res.json()).then(f => setFacultades(f))
+          }
           if (d.user?.enrolledCourses) {
             setSelectedCourses(d.user.enrolledCourses.map(c => c.id))
           }
         })
-      fetch("/api/faculties").then(res => res.json()).then(f => setFacultades(f))
       fetch("/api/notifications")
         .then(res => res.json())
         .then(n => {
@@ -55,6 +60,22 @@ export default function DashboardPage() {
     }
   }, [session])
 
+  useEffect(() => {
+    if (showEnrollModal && data?.user?.careerId && careerCourses.length === 0) {
+      setLoadingCourses(true)
+      fetch("/api/user/career-courses")
+        .then(res => res.json())
+        .then(courses => {
+          setCareerCourses(courses)
+          setLoadingCourses(false)
+        })
+        .catch(err => {
+          console.error("Error al cargar materias:", err)
+          setLoadingCourses(false)
+        })
+    }
+  }, [showEnrollModal, data?.user?.careerId, careerCourses.length])
+
   const handleSaveCareer = async () => {
     if (!selectedCareer) return
     setIsSaving(true)
@@ -62,7 +83,17 @@ export default function DashboardPage() {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ careerId: selectedCareer.id }),
     })
-    if (res.ok) window.location.reload()
+    if (res.ok) {
+      setShowOnboarding(false)
+      const summaryRes = await fetch("/api/dashboard/summary")
+      if (summaryRes.ok) {
+        const d = await summaryRes.json()
+        setData(d)
+        if (d.user?.enrolledCourses) {
+          setSelectedCourses(d.user.enrolledCourses.map(c => c.id))
+        }
+      }
+    }
     setIsSaving(false)
   }
 
@@ -74,7 +105,14 @@ export default function DashboardPage() {
     })
     if (res.ok) {
       setShowEnrollModal(false)
-      window.location.reload()
+      const summaryRes = await fetch("/api/dashboard/summary")
+      if (summaryRes.ok) {
+        const d = await summaryRes.json()
+        setData(d)
+        if (d.user?.enrolledCourses) {
+          setSelectedCourses(d.user.enrolledCourses.map(c => c.id))
+        }
+      }
     }
     setIsSaving(false)
   }
@@ -104,7 +142,7 @@ export default function DashboardPage() {
 
   const normalizeText = (text) => text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase()
 
-  const filteredCourses = data?.user?.career?.courses?.filter(c => 
+  const filteredCourses = careerCourses.filter(c => 
     normalizeText(c.name).includes(normalizeText(courseSearch)) || 
     normalizeText(c.id).includes(normalizeText(courseSearch))
   )
@@ -122,7 +160,7 @@ export default function DashboardPage() {
             {data?.user?.career?.name || "Cargando tu información..."}
           </p>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-4)' }}>
+        <div className="header-actions-mobile hide-mobile" style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-4)' }}>
           <div style={{ position: 'relative' }}>
             <button 
               onClick={() => setShowNotifications(!showNotifications)}
@@ -138,7 +176,7 @@ export default function DashboardPage() {
             
             {/* Notifications Dropdown */}
             {showNotifications && (
-              <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 'var(--space-2)', background: 'var(--surface-0)', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-md)', width: 320, zIndex: 'var(--z-dropdown)', boxShadow: 'var(--shadow-lg)' }}>
+              <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 'var(--space-2)', background: 'var(--surface-0)', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-md)', width: 320, maxWidth: 'calc(100vw - var(--space-8))', zIndex: 'var(--z-dropdown)', boxShadow: 'var(--shadow-lg)' }}>
                 <div style={{ padding: 'var(--space-3) var(--space-4)', borderBottom: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ fontWeight: 600, fontSize: 'var(--text-sm)' }}>Notificaciones</span>
                   {unreadCount > 0 && (
@@ -237,8 +275,8 @@ export default function DashboardPage() {
             </div>
 
             {!data ? (
-              <div className="metrics-grid">
-                {[1,2,3,4].map(i => <div key={i} className="skeleton" style={{ height: 60 }} />)}
+              <div className="courses-grid">
+                {[1,2].map(i => <div key={i} className="skeleton" style={{ height: 68, borderRadius: 'var(--radius-lg)' }} />)}
               </div>
             ) : data.user?.enrolledCourses?.length > 0 ? (
               <div className="courses-grid">
@@ -299,8 +337,16 @@ export default function DashboardPage() {
             </div>
 
             {!data ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-                {[1,2,3].map(i => <div key={i} className="skeleton" style={{ height: 40 }} />)}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+                {[1,2,3].map(i => (
+                  <div key={i} style={{ display: 'flex', gap: 'var(--space-3)', alignItems: 'start' }}>
+                    <div className="skeleton" style={{ width: 28, height: 28, borderRadius: 'var(--radius-md)' }} />
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: 1 }}>
+                      <div className="skeleton" style={{ height: 16, width: '80%' }} />
+                      <div className="skeleton" style={{ height: 12, width: '40%' }} />
+                    </div>
+                  </div>
+                ))}
               </div>
             ) : data.recentActivity?.length > 0 ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
@@ -405,7 +451,11 @@ export default function DashboardPage() {
             </div>
 
             <div style={{ overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: 'var(--space-3)', paddingRight: 'var(--space-2)' }}>
-              {filteredCourses?.length === 0 ? (
+              {loadingCourses ? (
+                [1, 2, 3, 4].map(i => (
+                  <div key={i} className="skeleton" style={{ height: 72, borderRadius: 'var(--radius-lg)' }} />
+                ))
+              ) : filteredCourses?.length === 0 ? (
                 <div style={{ padding: 'var(--space-8)', textAlign: 'center', color: 'var(--text-muted)' }}>
                   No se encontraron asignaturas que coincidan con tu búsqueda.
                 </div>
@@ -474,11 +524,6 @@ export default function DashboardPage() {
           width: 100%;
           align-items: start;
         }
-        .metrics-grid {
-          display: grid;
-          grid-template-columns: repeat(3, 1fr);
-          gap: var(--space-4);
-        }
         .courses-grid {
           display: grid;
           grid-template-columns: 1fr 1fr;
@@ -488,7 +533,6 @@ export default function DashboardPage() {
           .dashboard-grid { grid-template-columns: 1fr; }
         }
         @media (max-width: 768px) {
-          .metrics-grid { grid-template-columns: 1fr; }
           .courses-grid { grid-template-columns: 1fr; }
         }
       `}</style>

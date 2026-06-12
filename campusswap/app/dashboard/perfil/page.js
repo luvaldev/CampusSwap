@@ -16,6 +16,10 @@ export default function PerfilPage() {
   const [userData, setUserData] = useState(null)
   const [showChangeCareer, setShowChangeCareer] = useState(false)
   const [toastMessage, setToastMessage] = useState("")
+  
+  const [nicknameInput, setNicknameInput] = useState("")
+  const [isEditingNickname, setIsEditingNickname] = useState(false)
+  const [savingNickname, setSavingNickname] = useState(false)
 
   useEffect(() => { setMounted(true) }, [])
 
@@ -24,7 +28,10 @@ export default function PerfilPage() {
     if (status === "authenticated") {
       fetch("/api/user/me")
         .then(res => res.json())
-        .then(data => setUserData(data))
+        .then(data => {
+          setUserData(data)
+          setNicknameInput(data.nickname || "")
+        })
         .catch(err => console.error("Error cargando perfil:", err))
     }
   }, [status, router])
@@ -45,6 +52,30 @@ export default function PerfilPage() {
       setToastMessage("Error de conexión")
     }
     setShowChangeCareer(false)
+  }
+
+  const handleSaveNickname = async () => {
+    setSavingNickname(true)
+    try {
+      const res = await fetch("/api/user/nickname", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nickname: nicknameInput.trim() })
+      })
+      const data = await res.json()
+      if (res.ok) {
+        setToastMessage("Apodo actualizado exitosamente")
+        setUserData(prev => ({ ...prev, nickname: nicknameInput.trim(), nicknameLastChangedAt: new Date().toISOString() }))
+        setIsEditingNickname(false)
+      } else {
+        setToastMessage(data.error || "Error al actualizar apodo")
+      }
+    } catch {
+      setToastMessage("Error de conexión")
+    } finally {
+      setSavingNickname(false)
+      setTimeout(() => setToastMessage(""), 4000)
+    }
   }
 
   if (status === "loading" || !mounted) {
@@ -97,7 +128,7 @@ export default function PerfilPage() {
       </div>
 
       {/* Stats Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 'var(--space-4)', marginBottom: 'var(--space-6)' }}>
+      <div className="profile-stats-grid">
         <div className="stat-card" style={{ textAlign: 'center', alignItems: 'center' }}>
           <Star size={22} weight="fill" color="var(--karma)" />
           <p className="stat-value" style={{ fontSize: 'var(--text-xl)' }}>{karma}</p>
@@ -119,6 +150,20 @@ export default function PerfilPage() {
           <p className="stat-label">Ramos</p>
         </div>
       </div>
+
+      <style>{`
+        .profile-stats-grid {
+          display: grid;
+          grid-template-columns: repeat(4, 1fr);
+          gap: var(--space-4);
+          margin-bottom: var(--space-6);
+        }
+        @media (max-width: 768px) {
+          .profile-stats-grid {
+            grid-template-columns: repeat(2, 1fr);
+          }
+        }
+      `}</style>
 
       {/* Karma Progress */}
       <div className="card" style={{ marginBottom: 'var(--space-6)' }}>
@@ -160,6 +205,42 @@ export default function PerfilPage() {
         <h3 style={{ fontSize: 'var(--text-base)', fontWeight: 700, marginBottom: 'var(--space-5)', display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
           <Pencil size={18} weight="fill" color="var(--text-secondary)" /> Configuración
         </h3>
+
+        <div style={{ padding: 'var(--space-4)', background: 'var(--surface-1)', borderRadius: 'var(--radius-md)', marginBottom: 'var(--space-4)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 'var(--space-3)' }}>
+            <div>
+              <p style={{ fontSize: 'var(--text-sm)', fontWeight: 600 }}>Apodo de Chat</p>
+              <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>Visible en el foro. Cooldown de 5 días.</p>
+            </div>
+            {!isEditingNickname && (
+              <button onClick={() => setIsEditingNickname(true)} className="btn btn-secondary btn-sm">Editar</button>
+            )}
+          </div>
+          
+          {isEditingNickname ? (
+            <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+              <input 
+                type="text" 
+                value={nicknameInput}
+                onChange={(e) => setNicknameInput(e.target.value)}
+                placeholder="Tu apodo"
+                className="input"
+                maxLength={20}
+                style={{ flex: 1 }}
+              />
+              <button onClick={handleSaveNickname} disabled={savingNickname} className="btn btn-primary btn-sm">
+                {savingNickname ? 'Guardando...' : 'Guardar'}
+              </button>
+              <button onClick={() => setIsEditingNickname(false)} disabled={savingNickname} className="btn btn-secondary btn-sm">
+                Cancelar
+              </button>
+            </div>
+          ) : (
+            <p style={{ fontSize: 'var(--text-sm)', color: userData?.nickname ? 'var(--text-primary)' : 'var(--text-muted)', fontStyle: userData?.nickname ? 'normal' : 'italic' }}>
+              {userData?.nickname || "No tienes un apodo configurado"}
+            </p>
+          )}
+        </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
           <button

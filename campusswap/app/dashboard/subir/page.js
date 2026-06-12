@@ -126,11 +126,11 @@ export default function SubirApunte() {
           <p>El sistema de moderación peer-to-peer garantiza la calidad del material académico.</p>
         </div>
 
-        <div style={{ display: 'flex', gap: 'var(--space-3)', justifyContent: 'center' }}>
-          <button onClick={() => { setFile(null); setSelectedCurso(""); setTitle(""); setUploaded(false); }} className="btn btn-secondary">
+        <div className="flex-col-mobile" style={{ display: 'flex', gap: 'var(--space-3)', justifyContent: 'center' }}>
+          <button onClick={() => { setFile(null); setSelectedCurso(""); setTitle(""); setUploaded(false); }} className="btn btn-secondary w-full-mobile">
             Subir otro apunte
           </button>
-          <button onClick={() => router.push('/dashboard')} className="btn btn-primary">
+          <button onClick={() => router.push('/dashboard')} className="btn btn-primary w-full-mobile">
             Ir al Dashboard
           </button>
         </div>
@@ -221,17 +221,17 @@ export default function SubirApunte() {
               <input id="fileInput" type="file" accept=".pdf,.docx,.jpg,.jpeg,.png" onChange={handleFileInput} style={{ display: 'none' }} />
             </div>
           ) : (
-            <div className="card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 'var(--space-4) var(--space-5)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
-                <div className="icon-box icon-box-md" style={{ background: 'var(--success-subtle)' }}>
+            <div className="card file-row-mobile" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 'var(--space-4) var(--space-5)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', flex: 1, minWidth: 0 }}>
+                <div className="icon-box icon-box-md" style={{ background: 'var(--success-subtle)', flexShrink: 0 }}>
                   {file.type.startsWith('image/') ? <ImageIcon size={20} color="var(--success)" /> : <FileText size={20} color="var(--success)" />}
                 </div>
-                <div>
-                  <p className="truncate" style={{ fontWeight: 600, fontSize: 'var(--text-sm)', maxWidth: 350 }}>{file.name}</p>
+                <div style={{ minWidth: 0 }}>
+                  <p className="truncate" style={{ fontWeight: 600, fontSize: 'var(--text-sm)', maxWidth: '100%' }}>{file.name}</p>
                   <p style={{ color: 'var(--text-muted)', fontSize: 'var(--text-xs)' }}>{(file.size / 1024 / 1024).toFixed(2)} MB</p>
                 </div>
               </div>
-              <button onClick={() => setFile(null)} className="btn btn-ghost btn-sm" aria-label="Remover archivo">
+              <button onClick={() => setFile(null)} className="btn btn-ghost btn-sm" aria-label="Remover archivo" style={{ alignSelf: 'center' }}>
                 <X size={16} />
               </button>
             </div>

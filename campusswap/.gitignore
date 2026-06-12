@@ -43,4 +43,12 @@ next-env.d.ts
 #bun
 bun.lock
 
+#Prisma
 /app/generated/prisma
+
+#Gemini
+.gemini/
+
+#Archivos
+IDEA.md
+Tareas.md

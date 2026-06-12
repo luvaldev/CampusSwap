@@ -1,5 +1,6 @@
 'use client'
 import Sidebar from "../components/Sidebar"
+import TopBar from "../components/TopBar"
 import { useSession } from "next-auth/react"
 import { BookOpen } from "@phosphor-icons/react"
 import { useEffect, useState } from "react"
@@ -10,7 +11,7 @@ export default function DashboardLayout({ children }) {
 
   useEffect(() => {
     if (status !== 'loading') {
-      const timer = setTimeout(() => setShowSplash(false), 1800) // 1 second longer delay
+      const timer = setTimeout(() => setShowSplash(false), 400) // Fast fade for Web Vitals
       return () => clearTimeout(timer)
     }
   }, [status])
@@ -86,18 +87,28 @@ export default function DashboardLayout({ children }) {
 
   return (
     <div className="dashboard-shell">
-      <Sidebar />
-      <main className="dashboard-main">
-        {children}
-      </main>
+      <TopBar />
+      <div className="dashboard-body-wrapper">
+        <Sidebar />
+        <main className="dashboard-main">
+          {children}
+        </main>
+      </div>
 
       <style>{`
         .dashboard-shell {
           display: flex;
-          min-height: 100dvh;
+          height: 100vh; /* Fallback for older browsers */
+          height: 100dvh;
           background: var(--surface-0);
           overflow: hidden;
           animation: fadeShell 0.3s ease-out;
+        }
+        .dashboard-body-wrapper {
+          display: flex;
+          flex: 1;
+          overflow: hidden;
+          width: 100%;
         }
         @keyframes fadeShell {
           from { opacity: 0; }
@@ -110,8 +121,12 @@ export default function DashboardLayout({ children }) {
           position: relative;
         }
         @media (max-width: 768px) {
+          .dashboard-shell {
+            flex-direction: column;
+          }
           .dashboard-main {
             padding: var(--space-5) var(--space-4);
+            padding-bottom: calc(80px + env(safe-area-inset-bottom));
           }
         }
       `}</style>

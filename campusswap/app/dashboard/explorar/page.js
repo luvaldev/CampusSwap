@@ -53,46 +53,46 @@ export default function Explorar() {
   return (
     <div style={{ width: '100%' }}>
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 'var(--space-8)', gap: 'var(--space-6)' }}>
-        <div style={{ flex: 1 }}>
-          <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-muted)', marginBottom: '4px' }}>Explorar Directorio UDP</p>
-          <h1 className="page-title">
-            {selectedCarrera ? selectedCarrera.nombre : selectedFacultad ? selectedFacultad.nombre : 'Todas las Facultades'}
-          </h1>
+      <div style={{ marginBottom: 'var(--space-6)' }}>
+        <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-muted)', marginBottom: '4px' }}>Explorar Directorio UDP</p>
+        <h1 className="page-title">
+          {selectedCarrera ? selectedCarrera.nombre : selectedFacultad ? selectedFacultad.nombre : 'Todas las Facultades'}
+        </h1>
 
-          {(selectedFacultad || selectedCarrera) && (
-            <div className="breadcrumb">
-              <button className="breadcrumb-item" onClick={() => { setSelectedFacultad(null); setSelectedCarrera(null); setSearchTerm(""); }}>
-                Facultades
+        {(selectedFacultad || selectedCarrera) && (
+          <div className="breadcrumb" style={{ flexWrap: 'wrap' }}>
+            <button className="breadcrumb-item" onClick={() => { setSelectedFacultad(null); setSelectedCarrera(null); setSearchTerm(""); }}>
+              Facultades
+            </button>
+            <CaretRight size={14} className="breadcrumb-separator" />
+            {selectedFacultad && (
+              <button
+                className={`breadcrumb-item ${!selectedCarrera ? 'breadcrumb-item-active' : ''}`}
+                onClick={() => { setSelectedCarrera(null); setSearchTerm(""); }}
+              >
+                {selectedFacultad.id.toUpperCase()}
               </button>
-              <CaretRight size={14} className="breadcrumb-separator" />
-              {selectedFacultad && (
-                <button
-                  className={`breadcrumb-item ${!selectedCarrera ? 'breadcrumb-item-active' : ''}`}
-                  onClick={() => { setSelectedCarrera(null); setSearchTerm(""); }}
-                >
-                  {selectedFacultad.id.toUpperCase()}
-                </button>
-              )}
-              {selectedCarrera && (
-                <>
-                  <CaretRight size={14} className="breadcrumb-separator" />
-                  <span className="breadcrumb-item breadcrumb-item-active">{selectedCarrera.tag}</span>
-                </>
-              )}
-            </div>
-          )}
-        </div>
+            )}
+            {selectedCarrera && (
+              <>
+                <CaretRight size={14} className="breadcrumb-separator" />
+                <span className="breadcrumb-item breadcrumb-item-active">{selectedCarrera.tag}</span>
+              </>
+            )}
+          </div>
+        )}
+      </div>
 
-        {/* Search */}
-        <div style={{ width: 300, display: 'flex', alignItems: 'center', gap: 'var(--space-3)', background: 'var(--surface-2)', border: '1px solid var(--border-default)', padding: 'var(--space-3) var(--space-4)', borderRadius: 'var(--radius-md)' }}>
-          <MagnifyingGlass size={18} color="var(--brand)" />
+      {/* Search Bar */}
+      <div style={{ marginBottom: 'var(--space-6)', maxWidth: 500, width: '100%' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', background: 'var(--surface-2)', border: '1px solid var(--border-default)', padding: 'var(--space-3) var(--space-4)', borderRadius: 'var(--radius-md)' }}>
+          <MagnifyingGlass size={18} color="var(--brand)" style={{ flexShrink: 0 }} />
           <input
             type="text"
             placeholder={`Buscar ${selectedCarrera ? 'ramos' : selectedFacultad ? 'carreras' : 'facultades'}...`}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            style={{ flex: 1, background: 'transparent', border: 'none', color: 'var(--text-primary)', fontSize: 'var(--text-sm)', outline: 'none', fontFamily: 'var(--font-sans)' }}
+            style={{ flex: 1, minWidth: 0, background: 'transparent', border: 'none', color: 'var(--text-primary)', fontSize: 'var(--text-sm)', outline: 'none', fontFamily: 'var(--font-sans)' }}
           />
         </div>
       </div>

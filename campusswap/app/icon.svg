@@ -1,0 +1,32 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#18181b" />
+      <stop offset="100%" stop-color="#09090b" />
+    </linearGradient>
+    <linearGradient id="brand" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#c084fc" />
+      <stop offset="100%" stop-color="#6366f1" />
+    </linearGradient>
+  </defs>
+  
+  <rect width="512" height="512" rx="112" fill="url(#bg)" />
+
+  <!-- Outer Swap Arrows -->
+  <g stroke="url(#brand)" stroke-width="32" stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <!-- Top-Right Arrow -->
+    <path d="M96 256 A 160 160 0 0 1 369.1 142.9" />
+    <polyline points="369.1,82.9 369.1,142.9 309.1,142.9" />
+    
+    <!-- Bottom-Left Arrow -->
+    <path d="M416 256 A 160 160 0 0 1 142.9 369.1" />
+    <polyline points="142.9,429.1 142.9,369.1 202.9,369.1" />
+  </g>
+
+  <!-- Solid white stylized book in the center -->
+  <g stroke="white" stroke-width="28" stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <path d="M256 312C256 312 216 288 160 288V184C216 184 256 208 256 208" />
+    <path d="M256 312C256 312 296 288 352 288V184C296 184 256 208 256 208" />
+    <line x1="256" y1="208" x2="256" y2="312" />
+  </g>
+</svg>

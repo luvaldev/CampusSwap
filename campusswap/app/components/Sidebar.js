@@ -156,6 +156,7 @@ export default function Sidebar() {
           display: flex;
           flex-direction: column;
           padding: var(--space-6) var(--space-4);
+          overflow-y: auto;
         }
 
         .sidebar-logo {

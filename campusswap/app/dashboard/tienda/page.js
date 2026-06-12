@@ -79,7 +79,7 @@ export default function TiendaPage() {
         </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-4)' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 'var(--space-4)' }}>
         <div className="card">
           <h3 style={{ fontSize: 'var(--text-base)', fontWeight: 700, marginBottom: 'var(--space-2)' }}>Tutorías Personalizadas</h3>
           <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-secondary)' }}>Coordina clases por hora. Publica tu link de pago (Flow o MercadoPago) y tu calendario de disponibilidad.</p>
