@@ -42,6 +42,10 @@ export async function POST(request) {
     return NextResponse.json({ error: "No autenticado" }, { status: 401 })
   }
 
+  if (session.user.role === "GUEST") {
+    return NextResponse.json({ error: "Las cuentas de invitado no tienen permisos para subir archivos." }, { status: 403 })
+  }
+
   try {
     const formData = await request.formData()
     const file = formData.get("file")

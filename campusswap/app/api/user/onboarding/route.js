@@ -10,6 +10,9 @@ export async function POST(request) {
   if (!session || !session.user) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 })
   }
+  if (session.user.role === "GUEST") {
+    return NextResponse.json({ error: "No autorizado" }, { status: 403 })
+  }
 
   try {
     const { careerId } = await request.json()

@@ -6,6 +6,7 @@ import {
   Shield, Star, CheckCircle, XCircle, FileText,
   WarningCircle, Clock, ThumbsUp
 } from "@phosphor-icons/react"
+import GuestRestricted from "../../components/GuestRestricted"
 
 function StatCard({ icon: Icon, label, value, sub, color }) {
   return (
@@ -40,6 +41,8 @@ export default function Moderacion() {
     if (status === "unauthenticated") router.push('/')
     if (status === "authenticated") fetchDocuments()
   }, [status, router])
+
+  if (session?.user?.role === 'GUEST') return <GuestRestricted />
 
   const fetchDocuments = async () => {
     try {

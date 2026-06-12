@@ -29,6 +29,10 @@ export async function GET(request, { params }) {
     return NextResponse.json({ error: "No autenticado" }, { status: 401 })
   }
 
+  if (session.user.role === "GUEST") {
+    return NextResponse.json({ error: "Las cuentas de invitado no tienen acceso al chat." }, { status: 403 })
+  }
+
   const { courseId } = await params
   const { searchParams } = new URL(request.url)
   const cursor = searchParams.get("cursor")
@@ -62,6 +66,10 @@ export async function POST(request, { params }) {
   const session = await getServerSession(authOptions)
   if (!session?.user?.email) {
     return NextResponse.json({ error: "No autenticado" }, { status: 401 })
+  }
+
+  if (session.user.role === "GUEST") {
+    return NextResponse.json({ error: "Las cuentas de invitado no pueden enviar mensajes." }, { status: 403 })
   }
 
   const { courseId } = await params

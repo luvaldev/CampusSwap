@@ -7,6 +7,7 @@ import {
   SignOut, CalendarBlank, GraduationCap, Pencil,
   WarningCircle, CheckCircle
 } from "@phosphor-icons/react"
+import GuestRestricted from "../../components/GuestRestricted"
 
 export default function PerfilPage() {
   const { data: session, status } = useSession()
@@ -27,6 +28,8 @@ export default function PerfilPage() {
         .catch(err => console.error("Error cargando perfil:", err))
     }
   }, [status, router])
+
+  if (session?.user?.role === 'GUEST') return <GuestRestricted />
 
   const handleChangeCareer = async () => {
     try {

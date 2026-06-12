@@ -5,6 +5,75 @@ import { Suspense, useEffect, useState } from "react"
 import { ShieldWarning, BookOpen, WarningOctagon, ArrowRight, Sparkle, GoogleLogo, MagnifyingGlass, FileText, Star } from "@phosphor-icons/react"
 import ThemeToggle from "./components/ThemeToggle"
 
+function Splash() {
+  return (
+    <div className="splash-screen">
+      <div className="splash-content">
+        <BookOpen size={48} weight="bold" color="var(--brand)" className="splash-icon" />
+        <h1 className="splash-title">CampusSwap</h1>
+        <div className="splash-loader"></div>
+      </div>
+      <style>{`
+        .splash-screen {
+          position: fixed;
+          top: 0; left: 0; right: 0; bottom: 0;
+          background: var(--surface-0);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 9999;
+        }
+        .splash-content {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          animation: fadeIn 0.5s ease-out;
+        }
+        .splash-icon {
+          margin-bottom: var(--space-4);
+          animation: pulseIcon 2s infinite cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .splash-title {
+          font-size: var(--text-3xl);
+          font-weight: 800;
+          color: var(--text-primary);
+          letter-spacing: -0.02em;
+          margin-bottom: var(--space-6);
+        }
+        .splash-loader {
+          width: 120px;
+          height: 3px;
+          background: var(--surface-2);
+          border-radius: 4px;
+          overflow: hidden;
+          position: relative;
+        }
+        .splash-loader::after {
+          content: '';
+          position: absolute;
+          left: 0; top: 0; height: 100%;
+          width: 40%;
+          background: var(--brand);
+          animation: loadBar 1s infinite ease-in-out;
+          border-radius: 4px;
+        }
+        @keyframes fadeIn {
+          from { opacity: 0; transform: scale(0.95); }
+          to { opacity: 1; transform: scale(1); }
+        }
+        @keyframes pulseIcon {
+          0%, 100% { transform: scale(1); }
+          50% { transform: scale(1.1); }
+        }
+        @keyframes loadBar {
+          0% { left: -40%; }
+          100% { left: 100%; }
+        }
+      `}</style>
+    </div>
+  )
+}
+
 function LoginCard() {
   const { data: session, status } = useSession()
   const router = useRouter()
@@ -21,11 +90,17 @@ function LoginCard() {
     }
   }, [status, router])
 
-  if (status === "authenticated") return null
+  if (status === "loading" || status === "authenticated") return <Splash />
 
   const handleSignIn = async () => {
     setIsSigningIn(true)
     await signIn('google')
+    setIsSigningIn(false)
+  }
+
+  const handleGuestSignIn = async () => {
+    setIsSigningIn(true)
+    await signIn('credentials', { isGuest: "true", callbackUrl: '/dashboard' })
     setIsSigningIn(false)
   }
 
@@ -61,40 +136,58 @@ function LoginCard() {
               </div>
             )}
 
-            {/* Info notice */}
-            <div className="alert alert-brand" style={{ marginBottom: 'var(--space-6)' }}>
-              <ShieldWarning size={18} style={{ flexShrink: 0 }} />
-              <p>Acceso exclusivo comunidad UDP. Usa tu correo institucional.</p>
-            </div>
 
             <div style={{ position: 'relative', textAlign: 'center', marginBottom: 'var(--space-6)' }}>
               <div style={{ position: 'absolute', top: '50%', left: 0, right: 0, borderTop: '1px solid var(--border-subtle)', zIndex: 1 }}></div>
               <span style={{ position: 'relative', zIndex: 2, background: 'var(--surface-0)', padding: '0 var(--space-3)', color: 'var(--text-muted)', fontSize: 'var(--text-xs)', fontWeight: 600 }}>
-                Ingresa con
+                Opciones de ingreso
               </span>
             </div>
 
-            <button
-              onClick={handleSignIn}
-              disabled={isSigningIn}
-              className="google-signin-btn"
-            >
-              {isSigningIn ? (
-                <>
-                  <div className="spinner spinner-sm" /> Ingresando...
-                </>
-              ) : (
-                <>
-                  <svg className="google-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20">
-                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
-                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
-                  </svg>
-                  <span>Continuar con Google</span>
-                </>
-              )}
-            </button>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+              <button
+                onClick={handleSignIn}
+                disabled={isSigningIn}
+                className="google-signin-btn"
+              >
+                {isSigningIn ? (
+                  <>
+                    <div className="spinner spinner-sm" /> Ingresando...
+                  </>
+                ) : (
+                  <>
+                    <svg className="google-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20">
+                      <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                      <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                      <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+                      <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+                    </svg>
+                    <span>Continuar con Google UDP</span>
+                  </>
+                )}
+              </button>
+            </div>
+
+            <div style={{ textAlign: 'center', marginTop: 'var(--space-4)' }}>
+              <button
+                onClick={handleGuestSignIn}
+                disabled={isSigningIn}
+                style={{
+                  background: 'none', border: 'none', cursor: 'pointer',
+                  fontSize: 'var(--text-sm)', color: 'var(--text-secondary)', fontWeight: 500,
+                  textDecoration: 'underline', textDecorationColor: 'var(--border-default)', textUnderlineOffset: '4px'
+                }}
+              >
+                Ingresar como Invitado
+              </button>
+            </div>
+          </div>
+
+
+          {/* Info notice */}
+          <div className="alert alert-brand" style={{ marginBottom: 'var(--space-6)' }}>
+            <ShieldWarning size={18} style={{ flexShrink: 0 }} />
+            <p>Acceso exclusivo comunidad UDP. Usa tu correo institucional.</p>
           </div>
 
           <p style={{ textAlign: 'center', fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginTop: 'var(--space-8)', fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase' }}>

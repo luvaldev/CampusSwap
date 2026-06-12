@@ -6,6 +6,7 @@ import prisma from "../../../lib/prisma"
 export async function POST(request) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 })
+  if (session.user?.role === "GUEST") return NextResponse.json({ error: "No autorizado" }, { status: 403 })
 
   try {
     const { courseIds } = await request.json()

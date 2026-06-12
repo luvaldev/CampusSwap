@@ -29,12 +29,16 @@ export default function DashboardPage() {
   const [showNotifications, setShowNotifications] = useState(false)
 
   useEffect(() => {
+    if (session?.user?.role === 'GUEST') {
+      router.replace('/dashboard/explorar')
+      return
+    }
     if (session?.user) {
       fetch("/api/dashboard/summary")
         .then(res => res.json())
         .then(d => {
           setData(d)
-          if (d.user && !d.user.careerId) setShowOnboarding(true)
+          if (d.user && !d.user.careerId && session?.user?.role !== 'GUEST') setShowOnboarding(true)
           if (d.user?.enrolledCourses) {
             setSelectedCourses(d.user.enrolledCourses.map(c => c.id))
           }
@@ -272,18 +276,20 @@ export default function DashboardPage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)' }}>
 
           {/* Quarantine card */}
-          <div className="card" style={{ background: 'var(--warning-subtle)', borderColor: 'var(--border-default)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-3)' }}>
-              <Shield size={18} weight="fill" color="var(--warning)" />
-              <h3 style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--text-primary)' }}>Sistema de Cuarentena</h3>
+          {session?.user?.role !== 'GUEST' && (
+            <div className="card" style={{ background: 'var(--warning-subtle)', borderColor: 'var(--border-default)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-3)' }}>
+                <Shield size={18} weight="fill" color="var(--warning)" />
+                <h3 style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--text-primary)' }}>Sistema de Cuarentena</h3>
+              </div>
+              <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: 'var(--space-4)' }}>
+                Asegura la calidad académica revisando apuntes. Obtén <strong style={{ color: 'var(--text-primary)' }}>+10 Karma</strong> por moderación.
+              </p>
+              <button onClick={() => router.push('/dashboard/moderacion')} className="btn btn-primary btn-sm btn-full">
+                Panel de Moderación
+              </button>
             </div>
-            <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: 'var(--space-4)' }}>
-              Asegura la calidad académica revisando apuntes. Obtén <strong style={{ color: 'var(--text-primary)' }}>+10 Karma</strong> por moderación.
-            </p>
-            <button onClick={() => router.push('/dashboard/moderacion')} className="btn btn-secondary btn-sm btn-full">
-              Panel de Moderación
-            </button>
-          </div>
+          )}
 
           {/* Recent activity */}
           <div className="card">

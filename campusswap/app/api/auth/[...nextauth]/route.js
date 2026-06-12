@@ -1,6 +1,7 @@
 // app/api/auth/[...nextauth]/route.js
 import NextAuth from "next-auth"
 import GoogleProvider from "next-auth/providers/google"
+import CredentialsProvider from "next-auth/providers/credentials"
 import { PrismaAdapter } from "@auth/prisma-adapter"
 import prisma from "../../../lib/prisma" // Verifica que la ruta a tu prisma.js sea la correcta
 
@@ -12,22 +13,56 @@ export const authOptions = {
     GoogleProvider({
       clientId: process.env.GOOGLE_ID || "",
       clientSecret: process.env.GOOGLE_SECRET || "",
+    }),
+    CredentialsProvider({
+      name: "Guest",
+      credentials: {
+        isGuest: { label: "Guest", type: "text" }
+      },
+      async authorize(credentials) {
+        if (credentials.isGuest === "true") {
+          let guestUser = await prisma.user.findUnique({ where: { email: "guest@campusswap.cl" } })
+          if (!guestUser) {
+            guestUser = await prisma.user.create({
+              data: {
+                email: "guest@campusswap.cl",
+                name: "Invitado Anónimo",
+                role: "GUEST",
+              }
+            })
+          }
+          return { id: guestUser.id, name: guestUser.name, email: guestUser.email, role: guestUser.role }
+        }
+        return null
+      }
     })
   ],
   session: {
     strategy: "jwt",
   },
   callbacks: {
-    async signIn({ account, profile }) {
+    async signIn({ user, account, profile }) {
       if (account?.provider === "google") {
         if (!profile || !profile.email) return false
         const domain = profile.email.split("@")[1]
-        if (ALLOWED_DOMAINS.includes(domain)) {
+        
+        const isInstitutional = ALLOWED_DOMAINS.includes(domain)
+        
+        if (isInstitutional) {
+          // Si el usuario es institucional y acaba de crearse, aseguramos rol ESTUDIANTE
+          if (user && user.id && user.role === "GUEST") {
+            await prisma.user.update({ where: { id: user.id }, data: { role: "ESTUDIANTE" } })
+          }
           return true
         } else {
           return "/?error=AccessDenied"
         }
       }
+      
+      if (account?.provider === "credentials") {
+        return true
+      }
+      
       return false
     },
 

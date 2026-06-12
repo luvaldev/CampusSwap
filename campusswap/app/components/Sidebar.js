@@ -62,12 +62,14 @@ export default function Sidebar() {
       {/* Navigation */}
       <nav className="sidebar-nav">
         <p className="section-label">Principal</p>
-        <NavItem
-          icon={SquaresFour}
-          label="Dashboard"
-          active={pathname === '/dashboard'}
-          onClick={() => router.push('/dashboard')}
-        />
+        {session?.user?.role !== 'GUEST' && (
+          <NavItem
+            icon={SquaresFour}
+            label="Dashboard"
+            active={pathname === '/dashboard'}
+            onClick={() => router.push('/dashboard')}
+          />
+        )}
         <NavItem
           icon={Compass}
           label="Explorar"
@@ -75,20 +77,24 @@ export default function Sidebar() {
           onClick={() => router.push('/dashboard/explorar')}
         />
 
-        <p className="section-label" style={{ marginTop: 'var(--space-5)' }}>Acciones</p>
-        <NavItem
-          icon={UploadSimple}
-          label="Subir Apunte"
-          badge="S2"
-          active={pathname.includes('/subir')}
-          onClick={() => router.push('/dashboard/subir')}
-        />
-        <NavItem
-          icon={Shield}
-          label="Moderar"
-          active={pathname.includes('/moderacion')}
-          onClick={() => router.push('/dashboard/moderacion')}
-        />
+        {session?.user?.role !== 'GUEST' && (
+          <>
+            <p className="section-label" style={{ marginTop: 'var(--space-5)' }}>Acciones</p>
+            <NavItem
+              icon={UploadSimple}
+              label="Subir Apunte"
+              badge="S2"
+              active={pathname.includes('/subir')}
+              onClick={() => router.push('/dashboard/subir')}
+            />
+            <NavItem
+              icon={Shield}
+              label="Moderar"
+              active={pathname.includes('/moderacion')}
+              onClick={() => router.push('/dashboard/moderacion')}
+            />
+          </>
+        )}
         
         <p className="section-label" style={{ marginTop: 'var(--space-5)' }}>Sistema de Puntos</p>
         <NavItem
@@ -117,9 +123,15 @@ export default function Sidebar() {
             <p className="sidebar-username truncate">
               {session?.user?.name || 'Estudiante'}
             </p>
-            <span className="badge badge-brand" style={{ marginTop: '4px' }}>
-              {userCareer?.tag || 'Sin Carrera'}
-            </span>
+            {session?.user?.role === 'GUEST' ? (
+              <span className="badge" style={{ marginTop: '4px', background: 'var(--warning-subtle)', color: 'var(--warning)' }}>
+                Invitado
+              </span>
+            ) : (
+              <span className="badge badge-brand" style={{ marginTop: '4px' }}>
+                {userCareer?.tag || 'Sin Carrera'}
+              </span>
+            )}
           </div>
         </div>
 

@@ -41,7 +41,11 @@ export default function CursoDetalle() {
 
       // Fetch real data from APIs
       fetchCourseData(decodedId)
-      fetchChatMessages(decodedId)
+      if (session?.user?.role !== 'GUEST') {
+        fetchChatMessages(decodedId)
+      } else {
+        setLoadingChat(false)
+      }
     }
   }, [status, router, params])
 
@@ -123,22 +127,26 @@ export default function CursoDetalle() {
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', marginBottom: 'var(--space-2)' }}>
               <span className="badge badge-brand mono">{(curso.id || '').toUpperCase()}</span>
-              <span style={{ color: 'var(--text-muted)', fontSize: 'var(--text-sm)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <Users size={14} /> {stats?.enrolledUsers || 0} Alumnos inscritos
-              </span>
+              {session?.user?.role !== 'GUEST' && (
+                <span style={{ color: 'var(--text-muted)', fontSize: 'var(--text-sm)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <Users size={14} /> {stats?.enrolledUsers || 0} Alumnos inscritos
+                </span>
+              )}
             </div>
             <h1 className="page-title">{curso.name}</h1>
           </div>
-          <button onClick={() => router.push('/dashboard/subir')} className="btn btn-primary">
-            <UploadSimple size={18} /> Subir Apunte
-          </button>
+          {session?.user?.role !== 'GUEST' && (
+            <button onClick={() => router.push('/dashboard/subir')} className="btn btn-primary">
+              <UploadSimple size={18} /> Subir Apunte
+            </button>
+          )}
         </div>
       </div>
 
       {/* Split layout */}
       <div className="curso-split">
-        {/* Files */}
-        <div className="curso-files">
+        {/* Archivos (Apuntes) */}
+        <div className="curso-files" style={{ borderRight: session?.user?.role === 'GUEST' ? 'none' : undefined }}>
           <h2 style={{ fontSize: 'var(--text-lg)', fontWeight: 700, marginBottom: 'var(--space-5)', display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
             <FileText size={20} weight="fill" color="var(--brand)" /> Repositorio de Apuntes
           </h2>
@@ -187,77 +195,79 @@ export default function CursoDetalle() {
         </div>
 
         {/* Chat */}
-        <div className="curso-chat">
-          <div style={{ padding: 'var(--space-5) var(--space-6)', borderBottom: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
-              <ChatCircle size={20} weight="fill" color="var(--brand)" />
-              <h2 style={{ fontSize: 'var(--text-base)', fontWeight: 700 }}>Foro del Curso</h2>
+        {session?.user?.role !== 'GUEST' && (
+          <div className="curso-chat">
+            <div style={{ padding: 'var(--space-5) var(--space-6)', borderBottom: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
+                <ChatCircle size={20} weight="fill" color="var(--brand)" />
+                <h2 style={{ fontSize: 'var(--text-base)', fontWeight: 700 }}>Foro del Curso</h2>
+              </div>
+              {stats && <span className="badge badge-neutral">{stats.totalMessages} mensajes</span>}
             </div>
-            {stats && <span className="badge badge-neutral">{stats.totalMessages} mensajes</span>}
-          </div>
 
-          <div style={{ flex: 1, overflowY: 'auto', padding: 'var(--space-6)', display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
-            {loadingChat ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-                {[1,2,3].map(i => <div key={i} className="skeleton" style={{ height: 48, width: i % 2 === 0 ? '60%' : '70%' }} />)}
-              </div>
-            ) : chatMessages.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: 'var(--space-10)', color: 'var(--text-muted)' }}>
-                <ChatCircle size={32} style={{ margin: '0 auto var(--space-3)' }} />
-                <p style={{ fontSize: 'var(--text-sm)' }}>Sé el primero en iniciar la conversación.</p>
-              </div>
-            ) : (
-              chatMessages.map(msg => {
-                const isMe = msg.user?.name === session?.user?.name
-                return (
-                  <div key={msg.id} style={{ display: 'flex', gap: 'var(--space-3)', flexDirection: isMe ? 'row-reverse' : 'row', alignItems: 'flex-end' }}>
-                    {!isMe && (
-                      <div style={{ width: 28, height: 28, borderRadius: '50%', overflow: 'hidden', flexShrink: 0, border: '1px solid var(--border-brand)' }}>
-                        {msg.user?.image ? (
-                          <img src={msg.user.image} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                        ) : (
-                          <div style={{ width: '100%', height: '100%', background: 'var(--brand-wash)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--brand)', fontSize: 'var(--text-xs)', fontWeight: 700 }}>
-                            {msg.user?.name?.[0] || '?'}
-                          </div>
-                        )}
-                      </div>
-                    )}
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: isMe ? 'flex-end' : 'flex-start', maxWidth: '80%' }}>
-                      <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginBottom: '4px', padding: '0 4px' }}>
-                        {isMe ? 'Tú' : msg.user?.name || 'Anónimo'} · {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </span>
-                      <div className={isMe ? 'chat-bubble chat-bubble-me' : 'chat-bubble chat-bubble-other'}>
-                        {msg.content}
+            <div style={{ flex: 1, overflowY: 'auto', padding: 'var(--space-6)', display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+              {loadingChat ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+                  {[1,2,3].map(i => <div key={i} className="skeleton" style={{ height: 48, width: i % 2 === 0 ? '60%' : '70%' }} />)}
+                </div>
+              ) : chatMessages.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: 'var(--space-10)', color: 'var(--text-muted)' }}>
+                  <ChatCircle size={32} style={{ margin: '0 auto var(--space-3)' }} />
+                  <p style={{ fontSize: 'var(--text-sm)' }}>Sé el primero en iniciar la conversación.</p>
+                </div>
+              ) : (
+                chatMessages.map(msg => {
+                  const isMe = msg.user?.name === session?.user?.name
+                  return (
+                    <div key={msg.id} style={{ display: 'flex', gap: 'var(--space-3)', flexDirection: isMe ? 'row-reverse' : 'row', alignItems: 'flex-end' }}>
+                      {!isMe && (
+                        <div style={{ width: 28, height: 28, borderRadius: '50%', overflow: 'hidden', flexShrink: 0, border: '1px solid var(--border-brand)' }}>
+                          {msg.user?.image ? (
+                            <img src={msg.user.image} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          ) : (
+                            <div style={{ width: '100%', height: '100%', background: 'var(--brand-wash)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--brand)', fontSize: 'var(--text-xs)', fontWeight: 700 }}>
+                              {msg.user?.name?.[0] || '?'}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: isMe ? 'flex-end' : 'flex-start', maxWidth: '80%' }}>
+                        <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginBottom: '4px', padding: '0 4px' }}>
+                          {isMe ? 'Tú' : msg.user?.name || 'Anónimo'} · {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                        <div className={isMe ? 'chat-bubble chat-bubble-me' : 'chat-bubble chat-bubble-other'}>
+                          {msg.content}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                )
-              })
-            )}
-            <div ref={chatEndRef} />
-          </div>
-
-          <form onSubmit={handleSendMessage} style={{ padding: 'var(--space-5)', borderTop: '1px solid var(--border-subtle)', background: 'var(--surface-0)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', background: 'var(--surface-0)', border: '1px solid var(--border-default)', padding: '4px 4px 4px var(--space-4)', borderRadius: 'var(--radius-md)' }}>
-              <input
-                type="text"
-                placeholder="Escribe un mensaje al curso..."
-                value={newMessage}
-                onChange={e => setNewMessage(e.target.value)}
-                disabled={sendingMessage}
-                style={{ flex: 1, background: 'transparent', border: 'none', color: 'var(--text-primary)', fontSize: 'var(--text-sm)', outline: 'none', fontFamily: 'var(--font-sans)' }}
-              />
-              <button
-                type="submit"
-                disabled={!newMessage.trim() || sendingMessage}
-                className="btn btn-primary btn-sm"
-                style={{ width: 36, height: 36, padding: 0, borderRadius: 'var(--radius-sm)' }}
-              >
-                {sendingMessage ? <div className="spinner spinner-sm" /> : <PaperPlaneTilt size={16} weight="fill" />}
-              </button>
+                  )
+                })
+              )}
+              <div ref={chatEndRef} />
             </div>
-          </form>
-        </div>
+
+            <form onSubmit={handleSendMessage} style={{ padding: 'var(--space-5)', borderTop: '1px solid var(--border-subtle)', background: 'var(--surface-0)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', background: 'var(--surface-0)', border: '1px solid var(--border-default)', padding: '4px 4px 4px var(--space-4)', borderRadius: 'var(--radius-md)' }}>
+                <input
+                  type="text"
+                  placeholder="Escribe un mensaje al curso..."
+                  value={newMessage}
+                  onChange={e => setNewMessage(e.target.value)}
+                  disabled={sendingMessage}
+                  style={{ flex: 1, background: 'transparent', border: 'none', color: 'var(--text-primary)', fontSize: 'var(--text-sm)', outline: 'none', fontFamily: 'var(--font-sans)' }}
+                />
+                <button
+                  type="submit"
+                  disabled={!newMessage.trim() || sendingMessage}
+                  className="btn btn-primary btn-sm"
+                  style={{ width: 36, height: 36, padding: 0, borderRadius: 'var(--radius-sm)' }}
+                >
+                  {sendingMessage ? <div className="spinner spinner-sm" /> : <PaperPlaneTilt size={16} weight="fill" />}
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
       </div>
 
       <style>{`

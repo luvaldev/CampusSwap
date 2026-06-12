@@ -124,7 +124,7 @@
   --shadow-sm: 0 1px 3px oklch(5% 0.01 185 / 0.4);
   --shadow-md: 0 4px 16px oklch(5% 0.01 185 / 0.5);
   --shadow-lg: 0 8px 32px oklch(5% 0.01 185 / 0.6);
-  --shadow-brand: 0 4px 20px oklch(50% 0.1 185 / 0.3);
+  --shadow-brand: 0 4px 20px color-mix(in oklch, var(--brand) 30%, transparent);
 
   /* --- Z-Index Scale (semantic) --- */
   --z-dropdown: 10;
@@ -243,7 +243,7 @@ h1, h2, h3, h4, h5, h6 {
 .btn-primary:hover:not(:disabled) {
   background: var(--brand-hover);
   transform: translateY(-1px);
-  box-shadow: 0 6px 24px oklch(50% 0.1 185 / 0.4);
+  box-shadow: 0 6px 24px color-mix(in oklch, var(--brand) 40%, transparent);
 }
 
 .btn-secondary {
@@ -394,7 +394,7 @@ h1, h2, h3, h4, h5, h6 {
 
 .input:focus {
   border-color: var(--brand);
-  box-shadow: 0 0 0 3px oklch(72% 0.15 185 / 0.15);
+  box-shadow: 0 0 0 3px color-mix(in oklch, var(--brand) 15%, transparent);
 }
 
 .select {
@@ -431,7 +431,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 .custom-select-trigger.open {
   border-color: var(--brand);
-  box-shadow: 0 0 0 3px oklch(72% 0.15 185 / 0.15);
+  box-shadow: 0 0 0 3px color-mix(in oklch, var(--brand) 15%, transparent);
 }
 .placeholder {
   color: var(--text-secondary);

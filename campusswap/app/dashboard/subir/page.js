@@ -7,6 +7,7 @@ import {
   CloudArrowUp, X, Info, Image as ImageIcon
 } from "@phosphor-icons/react"
 import CustomSelect from "../../components/CustomSelect"
+import GuestRestricted from "../../components/GuestRestricted"
 
 import { carrerasDB, cursosDB } from "../../data/database"
 
@@ -45,6 +46,8 @@ export default function SubirApunte() {
       }
     }
   }, [status, router])
+
+  if (session?.user?.role === 'GUEST') return <GuestRestricted />
 
   const handleFileInput = (e) => {
     const f = e.target.files?.[0]

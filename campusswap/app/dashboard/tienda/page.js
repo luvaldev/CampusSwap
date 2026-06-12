@@ -36,44 +36,48 @@ export default function TiendaPage() {
           <Storefront size={28} color="var(--brand)" /> Tienda & Tutorías
         </h1>
         <p className="page-subtitle">
-          Usa tus Karma Points para desbloquear la posibilidad de ofrecer clases privadas o vender resúmenes premium a tus compañeros.
+          {session?.user?.role === 'GUEST' 
+            ? "Encuentra tutorías y resúmenes premium de la comunidad para potenciar tu aprendizaje."
+            : "Usa tus Karma Points para desbloquear la posibilidad de ofrecer clases privadas o vender resúmenes premium a tus compañeros."}
         </p>
       </div>
 
-      <div className="card" style={{ textAlign: 'center', padding: 'var(--space-10) var(--space-8)', marginBottom: 'var(--space-8)' }}>
-        <div style={{ background: 'var(--surface-2)', width: 80, height: 80, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto var(--space-4)' }}>
-          {isEligible ? (
-            <HandCoins size={40} color="var(--karma)" weight="fill" />
-          ) : (
-            <LockKey size={40} color="var(--text-muted)" weight="bold" />
+      {session?.user?.role !== 'GUEST' && (
+        <div className="card" style={{ textAlign: 'center', padding: 'var(--space-10) var(--space-8)', marginBottom: 'var(--space-8)' }}>
+          <div style={{ background: 'var(--surface-2)', width: 80, height: 80, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto var(--space-4)' }}>
+            {isEligible ? (
+              <HandCoins size={40} color="var(--karma)" weight="fill" />
+            ) : (
+              <LockKey size={40} color="var(--text-muted)" weight="bold" />
+            )}
+          </div>
+          
+          <h2 style={{ fontSize: 'var(--text-xl)', fontWeight: 800, marginBottom: 'var(--space-3)' }}>
+            {isEligible ? "¡Desbloqueado!" : "Acceso Restringido"}
+          </h2>
+          
+          <p style={{ color: 'var(--text-secondary)', fontSize: 'var(--text-sm)', maxWidth: '45ch', margin: '0 auto var(--space-5)', lineHeight: 'var(--leading-relaxed)' }}>
+            {isEligible 
+              ? "Has alcanzado 1,000 Karma Points. Ahora puedes crear publicaciones para vender apuntes y ofrecer tutorías." 
+              : "Necesitas al menos 1,000 Karma Points para activar tu tienda. Sigue subiendo y moderando apuntes de tu carrera para subir tu Karma."
+            }
+          </p>
+          
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)', background: 'var(--surface-1)', border: '1px solid var(--border-default)', padding: 'var(--space-2) var(--space-4)', borderRadius: 'var(--radius-pill)' }}>
+            <span style={{ fontSize: 'var(--text-sm)', color: 'var(--text-muted)' }}>Tu Karma actual:</span>
+            <Star size={16} weight="fill" color="var(--karma)" />
+            <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{karma} pts</span>
+          </div>
+
+          {isEligible && (
+            <div style={{ marginTop: 'var(--space-6)' }}>
+              <button className="btn btn-primary">
+                Crear Publicación
+              </button>
+            </div>
           )}
         </div>
-        
-        <h2 style={{ fontSize: 'var(--text-xl)', fontWeight: 800, marginBottom: 'var(--space-3)' }}>
-          {isEligible ? "¡Desbloqueado!" : "Acceso Restringido"}
-        </h2>
-        
-        <p style={{ color: 'var(--text-secondary)', fontSize: 'var(--text-sm)', maxWidth: '45ch', margin: '0 auto var(--space-5)', lineHeight: 'var(--leading-relaxed)' }}>
-          {isEligible 
-            ? "Has alcanzado 1,000 Karma Points. Ahora puedes crear publicaciones para vender apuntes y ofrecer tutorías." 
-            : "Necesitas al menos 1,000 Karma Points para activar tu tienda. Sigue subiendo y moderando apuntes de tu carrera para subir tu Karma."
-          }
-        </p>
-        
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)', background: 'var(--surface-1)', border: '1px solid var(--border-default)', padding: 'var(--space-2) var(--space-4)', borderRadius: 'var(--radius-pill)' }}>
-          <span style={{ fontSize: 'var(--text-sm)', color: 'var(--text-muted)' }}>Tu Karma actual:</span>
-          <Star size={16} weight="fill" color="var(--karma)" />
-          <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{karma} pts</span>
-        </div>
-
-        {isEligible && (
-          <div style={{ marginTop: 'var(--space-6)' }}>
-            <button className="btn btn-primary">
-              Crear Publicación
-            </button>
-          </div>
-        )}
-      </div>
+      )}
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-4)' }}>
         <div className="card">
