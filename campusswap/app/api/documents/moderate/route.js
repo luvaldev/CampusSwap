@@ -1,9 +1,7 @@
 import { getServerSession } from "next-auth"
 import { authOptions } from "../../auth/[...nextauth]/route"
-import { PrismaClient } from "@prisma/client"
 import { NextResponse } from "next/server"
-
-const prisma = new PrismaClient()
+import prisma from "../../../../lib/prisma"
 
 const KARMA_PER_MODERATION = 10
 const KARMA_PER_APPROVAL = 50
