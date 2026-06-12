@@ -113,12 +113,14 @@ export async function POST(request, { params }) {
     // Aplicar filtro de blacklist
     const { masked, wasMasked } = maskMessage(content)
 
+    const decodedCourseId = decodeURIComponent(courseId)
+
     const message = await prisma.chatMessage.create({
       data: {
         content: masked,
         isMasked: wasMasked,
         userId: user.id,
-        courseId: decodeURIComponent(courseId),
+        courseId: decodedCourseId,
       },
       include: {
         user: {
@@ -133,6 +135,54 @@ export async function POST(request, { params }) {
         }
       }
     })
+
+    // --- Lógica de Notificaciones Inteligentes (Anti-spam) ---
+    try {
+      const courseData = await prisma.course.findUnique({
+        where: { id: decodedCourseId },
+        include: { enrolledUsers: { select: { id: true } } }
+      })
+
+      if (courseData && courseData.enrolledUsers.length > 0) {
+        const enrolledUserIds = courseData.enrolledUsers
+          .filter(u => u.id !== user.id) // Excluir al emisor
+          .map(u => u.id)
+
+        if (enrolledUserIds.length > 0) {
+          const notificationTitle = `Hay mensajes nuevos en ${courseData.name}`
+          
+          const notifType = `COURSE_CHAT:${decodedCourseId}`
+          
+          // Evitar spam: consultar si ya tienen esta notificación sin leer
+          const existingNotifs = await prisma.notification.findMany({
+            where: {
+              userId: { in: enrolledUserIds },
+              type: notifType,
+              title: notificationTitle,
+              isRead: false
+            },
+            select: { userId: true }
+          })
+          
+          const usersWithExistingNotif = new Set(existingNotifs.map(n => n.userId))
+          const usersToNotify = enrolledUserIds.filter(id => !usersWithExistingNotif.has(id))
+
+          if (usersToNotify.length > 0) {
+            await prisma.notification.createMany({
+              data: usersToNotify.map(userId => ({
+                type: notifType,
+                title: notificationTitle,
+                message: 'Tus compañeros están conversando en el foro del curso.',
+                userId: userId
+              }))
+            })
+          }
+        }
+      }
+    } catch (notifError) {
+      console.error("Error al generar notificaciones de chat:", notifError)
+      // No bloqueamos el envío del mensaje si falla la notificación
+    }
 
     return NextResponse.json({ message }, { status: 201 })
   } catch (error) {

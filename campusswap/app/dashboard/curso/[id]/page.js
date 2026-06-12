@@ -31,6 +31,15 @@ export default function CursoDetalle() {
   const [hasUnreadChat, setHasUnreadChat] = useState(false)
 
   const showMobileChatRef = useRef(showMobileChat)
+  const isMountedRef = useRef(true)
+
+  useEffect(() => {
+    isMountedRef.current = true
+    return () => {
+      isMountedRef.current = false
+    }
+  }, [])
+
   useEffect(() => {
     showMobileChatRef.current = showMobileChat
   }, [showMobileChat])
@@ -155,12 +164,13 @@ export default function CursoDetalle() {
   const fetchChatMessages = async (courseId, silent = false) => {
     if (!silent) setLoadingChat(true)
     try {
-      const res = await fetch(`/api/chat/${encodeURIComponent(courseId)}`)
+      const res = await fetch(`/api/chat/${encodeURIComponent(courseId)}`, { cache: 'no-store' })
       if (res.ok) {
         const data = await res.json()
         const newMessages = data.messages || []
         
         setChatMessages(prevMessages => {
+          if (!isMountedRef.current) return prevMessages
           // Detect new unread messages when mobile chat is closed
           if (silent && !showMobileChatRef.current && prevMessages.length > 0 && newMessages.length > prevMessages.length) {
             const lastMsg = newMessages[newMessages.length - 1]
@@ -350,18 +360,18 @@ export default function CursoDetalle() {
                         </div>
                       )}
                       <div style={{ display: 'flex', flexDirection: 'column', alignItems: isMe ? 'flex-end' : 'flex-start', maxWidth: '80%' }}>
-                        <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginBottom: '4px', padding: '0 4px', display: 'flex', gap: '4px', alignItems: 'center' }}>
+                        <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginBottom: '4px', padding: '0 4px', display: 'block' }}>
                           {isMe ? (
-                            <>Tú &middot;</>
+                            'Tú · '
                           ) : (
                             <>
-                              <button onClick={() => setSelectedUser(msg.user)} style={{ background: 'none', border: 'none', padding: 0, color: 'var(--text-primary)', fontWeight: 600, cursor: 'pointer' }}>
+                              <button onClick={() => setSelectedUser(msg.user)} style={{ background: 'none', border: 'none', padding: 0, color: 'var(--text-primary)', fontWeight: 600, cursor: 'pointer', display: 'inline' }}>
                                 {msg.user?.nickname || msg.user?.name || 'Anónimo'}
                               </button>
-                              &middot;
+                              {' · '}
                             </>
                           )}
-                           {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </span>
                         <div className={isMe ? 'chat-bubble chat-bubble-me' : 'chat-bubble chat-bubble-other'} style={{ opacity: msg.isOptimistic ? 0.6 : 1, transition: 'opacity 0.2s' }}>
                           {msg.content}

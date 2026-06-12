@@ -83,7 +83,7 @@ export async function POST(request) {
 
     const document = await prisma.document.findUnique({
       where: { id: documentId },
-      select: { id: true, status: true, uploaderId: true, approvals: true, rejections: true }
+      select: { id: true, status: true, uploaderId: true, approvals: true, rejections: true, courseId: true }
     })
 
     if (!document) {
@@ -133,6 +133,54 @@ export async function POST(request) {
               userId: document.uploaderId,
             }
           })
+
+          // --- Lógica de Notificaciones Inteligentes a Estudiantes Inscritos ---
+          try {
+            const courseData = await tx.course.findUnique({
+              where: { id: document.courseId },
+              include: { enrolledUsers: { select: { id: true } } }
+            })
+
+            if (courseData && courseData.enrolledUsers.length > 0) {
+              const enrolledUserIds = courseData.enrolledUsers
+                .filter(u => u.id !== document.uploaderId) // Excluir al que subió el documento
+                .map(u => u.id)
+
+              if (enrolledUserIds.length > 0) {
+                const notificationTitle = `Hay apuntes nuevos en ${courseData.name}`
+                
+                const notifType = `COURSE_DOC:${document.courseId}`
+                
+                // Evitar spam: consultar si ya tienen esta notificación sin leer
+                const existingNotifs = await tx.notification.findMany({
+                  where: {
+                    userId: { in: enrolledUserIds },
+                    type: notifType,
+                    title: notificationTitle,
+                    isRead: false
+                  },
+                  select: { userId: true }
+                })
+                
+                const usersWithExistingNotif = new Set(existingNotifs.map(n => n.userId))
+                const usersToNotify = enrolledUserIds.filter(id => !usersWithExistingNotif.has(id))
+
+                if (usersToNotify.length > 0) {
+                  await tx.notification.createMany({
+                    data: usersToNotify.map(userId => ({
+                      type: notifType,
+                      title: notificationTitle,
+                      message: 'Se ha publicado un nuevo documento en el repositorio del curso.',
+                      userId: userId
+                    }))
+                  })
+                }
+              }
+            }
+          } catch (notifError) {
+            console.error("Error al generar notificaciones de documentos:", notifError)
+          }
+          // ---------------------------------------------------------------------
         }
 
         // Notificación de moderación al moderador

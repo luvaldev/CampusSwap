@@ -54,6 +54,21 @@ export default function TopBar() {
     }
   }
 
+  const handleNotificationClick = async (n) => {
+    if (!n.isRead) {
+      await handleMarkAsRead(n.id)
+    }
+    setShowNotifications(false) // Close dropdown
+    
+    // Redirect logic
+    if (n.type.startsWith('COURSE_CHAT:') || n.type.startsWith('COURSE_DOC:')) {
+      const courseId = n.type.split(':')[1]
+      if (courseId) {
+        router.push(`/dashboard/curso/${encodeURIComponent(courseId)}`)
+      }
+    }
+  }
+
   const handleLogoClick = () => {
     if (session?.user?.role === 'GUEST') {
       router.push('/dashboard/explorar')
@@ -75,14 +90,12 @@ export default function TopBar() {
         <div style={{ position: 'relative' }} ref={dropdownRef}>
           <button 
             onClick={() => setShowNotifications(!showNotifications)}
-            style={{ background: 'var(--surface-2)', padding: 'var(--space-3)', borderRadius: '50%', border: '1px solid var(--border-subtle)', cursor: 'pointer', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            className="topbar-action-btn"
             aria-label="Notificaciones"
           >
             <Bell size={18} color="var(--text-secondary)" />
             {unreadCount > 0 && (
-              <span style={{ position: 'absolute', top: 0, right: 0, background: 'var(--brand)', color: 'var(--text-on-brand)', fontSize: '10px', fontWeight: 'bold', width: 16, height: 16, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                {unreadCount}
-              </span>
+              <span style={{ position: 'absolute', top: 0, right: 0, background: 'var(--danger)', width: 10, height: 10, borderRadius: '50%', border: '2px solid var(--surface-0)' }} />
             )}
           </button>
           
@@ -106,7 +119,7 @@ export default function TopBar() {
                   notifications.map(n => (
                     <div 
                       key={n.id} 
-                      onClick={() => !n.isRead && handleMarkAsRead(n.id)}
+                      onClick={() => handleNotificationClick(n)}
                       className={`topbar-notification-item ${n.isRead ? 'is-read' : 'is-unread'}`}
                     >
                       <p className="topbar-notification-title">{n.title}</p>
@@ -121,7 +134,7 @@ export default function TopBar() {
 
         <button 
           onClick={() => router.push('/dashboard/perfil')}
-          style={{ padding: 0, border: 'none', background: 'transparent', cursor: 'pointer', display: 'flex' }}
+          className="topbar-avatar-btn"
           aria-label="Perfil de usuario"
         >
           <img
@@ -135,6 +148,39 @@ export default function TopBar() {
       <style>{`
         .topbar {
           display: none;
+        }
+
+        .topbar-action-btn {
+          background: var(--surface-2);
+          padding: var(--space-3);
+          border-radius: 50%;
+          border: 1px solid var(--border-subtle);
+          cursor: pointer;
+          position: relative;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: all 0.2s ease;
+        }
+
+        .topbar-action-btn:hover {
+          background: var(--surface-3);
+          transform: scale(1.05);
+        }
+
+        .topbar-avatar-btn {
+          padding: 0;
+          border: none;
+          background: transparent;
+          cursor: pointer;
+          display: flex;
+          transition: all 0.2s ease;
+          border-radius: 50%;
+        }
+
+        .topbar-avatar-btn:hover {
+          transform: scale(1.05);
+          box-shadow: 0 0 0 3px var(--brand-wash);
         }
 
         .topbar-dropdown {
@@ -195,7 +241,10 @@ export default function TopBar() {
 
         .topbar-notification-item.is-read {
           background: transparent;
-          cursor: default;
+        }
+
+        .topbar-notification-item:hover {
+          background: var(--surface-2);
         }
 
         .topbar-notification-item.is-unread {
