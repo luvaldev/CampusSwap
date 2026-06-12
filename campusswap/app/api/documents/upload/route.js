@@ -1,7 +1,7 @@
 import { getServerSession } from "next-auth"
 import { authOptions } from "../../auth/[...nextauth]/route"
 import { NextResponse } from "next/server"
-import prisma from "../../../../lib/prisma"
+import prisma from "../../../lib/prisma"
 
 const MAX_SIZE_BYTES = 10 * 1024 * 1024 // 10MB
 
