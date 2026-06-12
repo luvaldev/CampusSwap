@@ -10,7 +10,7 @@ export default function DashboardLayout({ children }) {
 
   useEffect(() => {
     if (status !== 'loading') {
-      const timer = setTimeout(() => setShowSplash(false), 800) // Smooth artificial delay
+      const timer = setTimeout(() => setShowSplash(false), 1800) // 1 second longer delay
       return () => clearTimeout(timer)
     }
   }, [status])
