@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 import {
   Shield, Star, CheckCircle, XCircle, FileText,
-  WarningCircle, Clock, ThumbsUp
+  WarningCircle, Clock, ThumbsUp, Storefront
 } from "@phosphor-icons/react"
 import GuestRestricted from "../../components/GuestRestricted"
 
@@ -30,6 +30,7 @@ export default function Moderacion() {
 
   const [files, setFiles] = useState([])
   const [loading, setLoading] = useState(true)
+  const [userData, setUserData] = useState(null)
   const [karmaGained, setKarmaGained] = useState(0)
   const [toastMessage, setToastMessage] = useState("")
   const [toastType, setToastType] = useState("success")
@@ -39,20 +40,41 @@ export default function Moderacion() {
 
   useEffect(() => {
     if (status === "unauthenticated") router.push('/')
-    if (status === "authenticated") fetchDocuments()
+    if (status === "authenticated") {
+      fetchDocuments()
+      fetch("/api/user/me")
+        .then(res => res.json())
+        .then(data => setUserData(data))
+        .catch(err => console.error("Error fetching user data:", err))
+    }
   }, [status, router])
 
   if (session?.user?.role === 'GUEST') return <GuestRestricted />
 
   const fetchDocuments = async () => {
     try {
-      const res = await fetch("/api/documents/moderate")
-      if (res.ok) {
-        const data = await res.json()
-        setFiles(data.documents || [])
+      const [docsRes, storeRes] = await Promise.all([
+        fetch("/api/documents/moderate"),
+        fetch("/api/store/moderate")
+      ])
+      
+      let allItems = []
+      
+      if (docsRes.ok) {
+        const data = await docsRes.json()
+        const docs = (data.documents || []).map(d => ({ ...d, itemType: 'document' }))
+        allItems = [...allItems, ...docs]
       }
+      
+      if (storeRes.ok) {
+        const data = await storeRes.json()
+        const listings = (data.listings || []).map(l => ({ ...l, itemType: 'listing', title: l.title || 'Publicación', format: l.type, size: 'Tienda' }))
+        allItems = [...allItems, ...listings]
+      }
+      
+      setFiles(allItems)
     } catch (err) {
-      console.error("Error fetching documents:", err)
+      console.error("Error fetching items:", err)
     } finally {
       setLoading(false)
     }
@@ -64,29 +86,38 @@ export default function Moderacion() {
     setTimeout(() => setToastMessage(""), 4000)
   }
 
-  const handleModerate = async (documentId, action, fileName) => {
-    setProcessingId(documentId)
+  const handleModerate = async (item, action) => {
+    setProcessingId(item.id)
     try {
-      const res = await fetch("/api/documents/moderate", {
+      const endpoint = item.itemType === 'document' ? "/api/documents/moderate" : "/api/store/moderate"
+      const body = item.itemType === 'document' 
+        ? { documentId: item.id, action } 
+        : { listingId: item.id, action }
+
+      const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ documentId, action }),
+        body: JSON.stringify(body),
       })
 
       if (res.ok) {
         const data = await res.json()
-        setFiles(prev => prev.filter(f => f.id !== documentId))
+        setFiles(prev => prev.filter(f => f.id !== item.id))
 
         if (action === "approve") {
           setKarmaGained(prev => prev + (data.karmaEarned || 10))
-          triggerToast(
-            data.published
-              ? `Apunte publicado. +${data.karmaEarned} Karma. El documento alcanzó el umbral de aprobaciones.`
-              : `Apunte aprobado. +${data.karmaEarned} Karma Points por validar: "${fileName}"`,
-            "success"
-          )
+          if (item.itemType === 'document') {
+            triggerToast(
+              data.published
+                ? `Apunte publicado. +${data.karmaEarned} Karma. El documento alcanzó el umbral de aprobaciones.`
+                : `Apunte aprobado. +${data.karmaEarned} Karma Points por validar: "${item.title}"`,
+              "success"
+            )
+          } else {
+            triggerToast(`Publicación restaurada en la tienda. +${data.karmaEarned} Karma.`, "success")
+          }
         } else {
-          triggerToast(`Apunte rechazado. Gracias por mantener la calidad del material.`, "error")
+          triggerToast(item.itemType === 'document' ? `Apunte rechazado. Gracias por mantener la calidad.` : `Publicación eliminada por inclumplir normas.`, "error")
         }
       } else {
         const err = await res.json()
@@ -121,15 +152,31 @@ export default function Moderacion() {
         <p style={{ color: 'var(--text-muted)', fontSize: 'var(--text-sm)', marginBottom: '4px' }}>Control de Calidad Académica</p>
         <h1 className="page-title">Panel de Moderación</h1>
         <p className="page-subtitle">
-          Revisa los apuntes en cuarentena subidos por tus compañeros. Valida que correspondan al ramo para ganar <span className="badge badge-karma" style={{ display: 'inline-flex' }}>+10 Karma</span> por archivo.
+          Revisa los apuntes en cuarentena y las publicaciones reportadas de la tienda. Valida que cumplan con las normas para ganar <span className="badge badge-karma" style={{ display: 'inline-flex' }}>+10 Karma</span> por revisión.
         </p>
       </div>
 
       {/* Stats */}
       <div className="metrics-grid" style={{ marginBottom: 'var(--space-8)' }}>
-        <StatCard icon={WarningCircle} label="Documentos en espera" value={files.length.toString()} color="var(--warning)" />
+        <StatCard icon={WarningCircle} label="Ítems en espera" value={files.length.toString()} color="var(--warning)" />
         <StatCard icon={Star} label="Karma ganado hoy" value={`+${karmaGained}`} sub="Sumado a tu perfil" color="var(--karma)" />
-        <StatCard icon={Shield} label="Tu nivel de Auditor" value="Rango Bronce" sub="Próximo rango a los 200 pts" color="var(--success)" />
+        {(() => {
+          const totalKarma = (userData?.karma || 0) + karmaGained
+          const rankNames = ['Novato', 'Intermedio', 'Avanzado', 'Experto', 'Maestro', 'Gran Maestro']
+          const rankIndex = Math.min(Math.floor(totalKarma / 500), rankNames.length - 1)
+          const tierName = rankNames[rankIndex]
+          const pointsToNext = rankIndex === rankNames.length - 1 ? 0 : 500 - (totalKarma % 500)
+          
+          return (
+            <StatCard 
+              icon={Shield} 
+              label="Tu nivel de Auditor" 
+              value={`Rango ${tierName}`} 
+              sub={pointsToNext > 0 ? `Próximo rango a los ${pointsToNext} pts` : "Rango Máximo alcanzado"} 
+              color="var(--success)" 
+            />
+          )
+        })()}
       </div>
 
       {/* Queue */}
@@ -152,14 +199,14 @@ export default function Moderacion() {
               <div key={file.id} className="file-row file-row-mobile" style={{ flexWrap: 'wrap' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-4)', flex: 1, minWidth: 0, width: '100%' }}>
                   <div className="icon-box icon-box-md" style={{ background: 'var(--warning-subtle)', flexShrink: 0 }}>
-                    <FileText size={18} color="var(--warning)" />
+                    {file.itemType === 'document' ? <FileText size={18} color="var(--warning)" /> : <Storefront size={18} color="var(--warning)" />}
                   </div>
                   <div style={{ minWidth: 0 }}>
                     <h4 className="truncate" style={{ fontWeight: 600, fontSize: 'var(--text-sm)', maxWidth: '100%' }} title={file.title}>{file.title}</h4>
                     <p style={{ color: 'var(--text-muted)', fontSize: 'var(--text-xs)', marginTop: '2px' }}>
                       <span className="mono" style={{ color: 'var(--brand)', fontWeight: 600 }}>
-                        {file.course?.name || 'Curso'} ({file.course?.id || ''})
-                      </span> · Subido por {file.uploader?.name || 'Anónimo'}
+                        {file.itemType === 'document' ? file.course?.name || 'Curso' : 'Tienda'} {file.course?.id ? `(${file.course.id})` : ''}
+                      </span> · Subido por {file.uploader?.name || file.user?.name || 'Anónimo'}
                     </p>
                   </div>
                 </div>
@@ -176,14 +223,14 @@ export default function Moderacion() {
 
                 <div className="flex-col-mobile" style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', width: '100%' }}>
                   <button
-                    onClick={() => handleModerate(file.id, "reject", file.title)}
+                    onClick={() => handleModerate(file, "reject")}
                     disabled={processingId === file.id}
                     className="btn btn-danger btn-sm w-full-mobile"
                   >
                     Rechazar
                   </button>
                   <button
-                    onClick={() => handleModerate(file.id, "approve", file.title)}
+                    onClick={() => handleModerate(file, "approve")}
                     disabled={processingId === file.id}
                     className="btn btn-success btn-sm w-full-mobile"
                   >

@@ -21,18 +21,18 @@
   --brand-muted: #f69793;
   --brand-wash: #ffdbc8;
 
-  --surface-0: #ffffff;
-  --surface-1: #fdfafb;
-  --surface-2: #f6eff0;
-  --surface-3: #eedfe2;
+  --surface-0: #f5f2f0; /* Soft Oatmeal / Alabaster */
+  --surface-1: #ece7e4; /* Light Sand */
+  --surface-2: #e2dbd6; /* Muted Beige */
+  --surface-3: #d5ccc6; /* Deep Beige */
 
-  --border-subtle: #eedfe2;
-  --border-default: #d1b8bc;
+  --border-subtle: #e2dbd6;
+  --border-default: #c1b5ac;
   --border-brand: #f69793;
 
-  --text-primary: #1a1516;
+  --text-primary: #241e1f;
   --text-secondary: #5f343e;
-  --text-muted: #8a6c72;
+  --text-muted: #847976;
   --text-on-brand: #ffffff;
 
   /* Semantic - adaptados a Light */
@@ -335,6 +335,7 @@ h1, h2, h3, h4, h5, h6 {
   border-radius: var(--radius-sm);
   white-space: nowrap;
   letter-spacing: 0.02em;
+  flex-shrink: 0;
 }
 
 .badge-brand {
@@ -660,7 +661,7 @@ h1, h2, h3, h4, h5, h6 {
 .nav-item {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
+  gap: var(--space-2);
   padding: var(--space-2) var(--space-3);
   border-radius: var(--radius-md);
   cursor: pointer;
@@ -669,6 +670,14 @@ h1, h2, h3, h4, h5, h6 {
   border: 1px solid transparent;
   transition: all var(--duration-fast) var(--ease-out);
   margin-bottom: 2px;
+}
+
+.nav-item span {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .nav-item:hover {

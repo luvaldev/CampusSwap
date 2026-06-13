@@ -1,11 +1,12 @@
 'use client'
 import { signOut, useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef } from "react"
 import {
   Star, FileText, Shield, Trophy, Clock, Swap,
   SignOut, CalendarBlank, GraduationCap, Pencil,
-  WarningCircle, CheckCircle
+  WarningCircle, CheckCircle, Image as ImageIcon,
+  At
 } from "@phosphor-icons/react"
 import GuestRestricted from "../../components/GuestRestricted"
 
@@ -20,6 +21,10 @@ export default function PerfilPage() {
   const [nicknameInput, setNicknameInput] = useState("")
   const [isEditingNickname, setIsEditingNickname] = useState(false)
   const [savingNickname, setSavingNickname] = useState(false)
+  
+  const fileInputRef = useRef(null)
+  const [uploadingImage, setUploadingImage] = useState(false)
+  const [deletingImage, setDeletingImage] = useState(false)
 
   useEffect(() => { setMounted(true) }, [])
 
@@ -74,6 +79,91 @@ export default function PerfilPage() {
       setToastMessage("Error de conexión")
     } finally {
       setSavingNickname(false)
+      setTimeout(() => setToastMessage(""), 4000)
+    }
+  }
+
+  const handleImageUpload = (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    if (!file.type.match('image/jpeg') && !file.type.match('image/png')) {
+      setToastMessage("Solo se admiten archivos .jpg y .png")
+      setTimeout(() => setToastMessage(""), 4000)
+      return
+    }
+
+    setUploadingImage(true)
+    const reader = new FileReader()
+    reader.onload = (event) => {
+      const img = new Image()
+      img.onload = async () => {
+        const canvas = document.createElement('canvas')
+        const MAX_SIZE = 256
+        let width = img.width
+        let height = img.height
+
+        if (width > height) {
+          if (width > MAX_SIZE) {
+            height = Math.round(height * (MAX_SIZE / width))
+            width = MAX_SIZE
+          }
+        } else {
+          if (height > MAX_SIZE) {
+            width = Math.round(width * (MAX_SIZE / height))
+            height = MAX_SIZE
+          }
+        }
+
+        canvas.width = width
+        canvas.height = height
+        const ctx = canvas.getContext('2d')
+        ctx.drawImage(img, 0, 0, width, height)
+
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.8)
+
+        try {
+          const res = await fetch("/api/user/image", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ image: dataUrl })
+          })
+          const data = await res.json()
+          if (res.ok) {
+            setToastMessage("Foto de perfil actualizada. Recargando...")
+            setTimeout(() => window.location.reload(), 1500)
+          } else {
+            setToastMessage(data.error || "Error al actualizar foto")
+            setUploadingImage(false)
+            setTimeout(() => setToastMessage(""), 4000)
+          }
+        } catch {
+          setToastMessage("Error de conexión al subir la foto")
+          setUploadingImage(false)
+          setTimeout(() => setToastMessage(""), 4000)
+        }
+      }
+      img.src = event.target.result
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const handleDeleteImage = async () => {
+    setDeletingImage(true)
+    try {
+      const res = await fetch("/api/user/image", { method: "DELETE" })
+      if (res.ok) {
+        setToastMessage("Foto eliminada. Restaurando predeterminada...")
+        setTimeout(() => window.location.reload(), 1500)
+      } else {
+        const data = await res.json()
+        setToastMessage(data.error || "Error al eliminar foto")
+        setDeletingImage(false)
+        setTimeout(() => setToastMessage(""), 4000)
+      }
+    } catch {
+      setToastMessage("Error de conexión al eliminar la foto")
+      setDeletingImage(false)
       setTimeout(() => setToastMessage(""), 4000)
     }
   }
@@ -236,10 +326,61 @@ export default function PerfilPage() {
               </button>
             </div>
           ) : (
-            <p style={{ fontSize: 'var(--text-sm)', color: userData?.nickname ? 'var(--text-primary)' : 'var(--text-muted)', fontStyle: userData?.nickname ? 'normal' : 'italic' }}>
-              {userData?.nickname || "No tienes un apodo configurado"}
-            </p>
+            <div style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 'var(--space-2)',
+              padding: 'var(--space-2) var(--space-4)',
+              background: 'var(--surface-0)',
+              border: '1px solid var(--border-default)',
+              borderRadius: 'var(--radius-md)',
+              fontSize: 'var(--text-sm)',
+              fontWeight: 500,
+              color: userData?.nickname ? 'var(--text-primary)' : 'var(--text-muted)',
+              minWidth: '160px',
+              boxShadow: 'var(--shadow-sm)'
+            }}>
+              <span style={{ color: 'var(--brand)', display: 'flex', alignItems: 'center' }}>
+                <At size={16} weight="bold" />
+              </span>
+              <span style={{ fontStyle: userData?.nickname ? 'normal' : 'italic' }}>
+                {userData?.nickname || "No tienes un apodo configurado"}
+              </span>
+            </div>
           )}
+        </div>
+
+        {/* Change Profile Picture Block */}
+        <div style={{ padding: 'var(--space-4)', background: 'var(--surface-1)', borderRadius: 'var(--radius-md)', marginBottom: 'var(--space-4)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <p style={{ fontSize: 'var(--text-sm)', fontWeight: 600 }}>Foto de Perfil</p>
+              <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>Solo archivos .jpg o .png (Máx. 5 MB antes de comprimir).</p>
+            </div>
+            <input 
+              type="file" 
+              ref={fileInputRef} 
+              style={{ display: 'none' }} 
+              accept=".jpg,.jpeg,.png" 
+              onChange={handleImageUpload} 
+            />
+            <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+              <button 
+                onClick={handleDeleteImage} 
+                disabled={deletingImage || uploadingImage} 
+                className="btn btn-secondary btn-sm"
+              >
+                {deletingImage ? 'Eliminando...' : 'Eliminar'}
+              </button>
+              <button 
+                onClick={() => fileInputRef.current?.click()} 
+                disabled={uploadingImage || deletingImage} 
+                className="btn btn-primary btn-sm"
+              >
+                {uploadingImage ? <div className="spinner spinner-sm" /> : 'Cambiar Foto'}
+              </button>
+            </div>
+          </div>
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>

@@ -49,10 +49,24 @@ export default function Sidebar() {
     }
   }, [status])
 
+  const handleLogoClick = () => {
+    if (session?.user?.role === 'GUEST') {
+      router.push('/dashboard/explorar')
+    } else {
+      router.push('/dashboard')
+    }
+  }
+
   return (
     <aside className="sidebar">
       {/* Logo */}
-      <div className="sidebar-logo">
+      <div 
+        className="sidebar-logo" 
+        onClick={handleLogoClick}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => e.key === 'Enter' && handleLogoClick()}
+      >
         <div className="sidebar-logo-icon">
           <BookOpen size={16} weight="bold" color="var(--text-on-brand)" />
         </div>
@@ -83,7 +97,6 @@ export default function Sidebar() {
             <NavItem
               icon={UploadSimple}
               label="Subir Apunte"
-              badge="S2"
               active={pathname.includes('/subir')}
               onClick={() => router.push('/dashboard/subir')}
             />
@@ -165,6 +178,7 @@ export default function Sidebar() {
           gap: var(--space-3);
           margin-bottom: var(--space-8);
           padding-left: var(--space-1);
+          cursor: pointer;
         }
 
         .sidebar-logo-icon {

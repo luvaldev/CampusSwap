@@ -13,18 +13,18 @@ datasource db {
 // ==========================================
 
 model Account {
-  id                 String  @id @default(cuid())
-  userId             String
-  type               String
-  provider           String
-  providerAccountId  String
-  refresh_token      String?  @db.Text
-  access_token       String?  @db.Text
-  expires_at         Int?
-  token_type         String?
-  scope              String?
-  id_token           String?  @db.Text
-  session_state      String?
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -52,16 +52,16 @@ model VerificationToken {
 // ==========================================
 
 model User {
-  id               String    @id @default(cuid())
-  name             String?
-  email            String?   @unique
-  emailVerified    DateTime?
-  image            String?
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
 
   // CampusSwap fields
-  role             String    @default("ESTUDIANTE") // ESTUDIANTE, TUTOR, ADMIN
-  karma            Int       @default(0)
-  createdAt        DateTime  @default(now())
+  role                  String    @default("ESTUDIANTE") // ESTUDIANTE, TUTOR, ADMIN
+  karma                 Int       @default(0)
+  createdAt             DateTime  @default(now())
   nickname              String?
   nicknameLastChangedAt DateTime?
 
@@ -71,22 +71,23 @@ model User {
   lastCareerChange DateTime?
 
   // Relations
-  documents        Document[]
-  enrolledCourses  Course[]        @relation("UserCourses")
-  messages         ChatMessage[]
-  notifications    Notification[]
-  reportsMade      Report[]        @relation("ReporterUser")
-  reportsReceived  Report[]        @relation("ReportedUser")
+  documents       Document[]
+  storeListings   StoreListing[]
+  enrolledCourses Course[]       @relation("UserCourses")
+  messages        ChatMessage[]
+  notifications   Notification[]
+  reportsMade     Report[]       @relation("ReporterUser")
+  reportsReceived Report[]       @relation("ReportedUser")
 
   // NextAuth relations
-  accounts         Account[]
-  sessions         Session[]
+  accounts Account[]
+  sessions Session[]
 }
 
 model Faculty {
-  id        String   @id
-  name      String
-  careers   Career[]
+  id      String   @id
+  name    String
+  careers Career[]
 }
 
 model Career {
@@ -100,12 +101,13 @@ model Career {
 }
 
 model Course {
-  id            String        @id
+  id            String         @id
   name          String
   credits       Int
   careers       Career[]
   documents     Document[]
-  enrolledUsers User[]        @relation("UserCourses")
+  storeListings StoreListing[]
+  enrolledUsers User[]         @relation("UserCourses")
   messages      ChatMessage[]
 }
 
@@ -114,23 +116,23 @@ model Course {
 // ==========================================
 
 model Document {
-  id          String    @id @default(uuid())
-  title       String
-  fileUrl     String
-  size        Float     // en MB
-  format      String    // PDF, DOCX, JPG, PNG
-  status      String    @default("QUARANTINE") // QUARANTINE, APPROVED, REJECTED
-  approvals   Int       @default(0)
-  rejections  Int       @default(0)
-  deletedAt   DateTime? // Soft delete — nunca borramos por trazabilidad legal
+  id         String    @id @default(uuid())
+  title      String
+  fileUrl    String
+  size       Float // en MB
+  format     String // PDF, DOCX, JPG, PNG
+  status     String    @default("QUARANTINE") // QUARANTINE, APPROVED, REJECTED
+  approvals  Int       @default(0)
+  rejections Int       @default(0)
+  deletedAt  DateTime? // Soft delete — nunca borramos por trazabilidad legal
 
-  uploaderId  String
-  uploader    User      @relation(fields: [uploaderId], references: [id])
-  courseId     String
-  course      Course    @relation(fields: [courseId], references: [id])
+  uploaderId String
+  uploader   User   @relation(fields: [uploaderId], references: [id])
+  courseId   String
+  course     Course @relation(fields: [courseId], references: [id])
 
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 // ==========================================
@@ -138,17 +140,17 @@ model Document {
 // ==========================================
 
 model ChatMessage {
-  id          String    @id @default(uuid())
-  content     String    @db.Text
-  isMasked    Boolean   @default(false) // Blacklist filter
-  deletedAt   DateTime? // Soft delete
+  id        String    @id @default(uuid())
+  content   String    @db.Text
+  isMasked  Boolean   @default(false) // Blacklist filter
+  deletedAt DateTime? // Soft delete
 
-  userId      String
-  user        User      @relation(fields: [userId], references: [id])
-  courseId     String
-  course      Course    @relation(fields: [courseId], references: [id])
+  userId   String
+  user     User   @relation(fields: [userId], references: [id])
+  courseId String
+  course   Course @relation(fields: [courseId], references: [id])
 
-  createdAt   DateTime  @default(now())
+  createdAt DateTime @default(now())
 
   @@index([courseId, createdAt])
 }
@@ -158,16 +160,16 @@ model ChatMessage {
 // ==========================================
 
 model Notification {
-  id          String   @id @default(uuid())
-  type        String   // KARMA_EARNED, DOC_APPROVED, DOC_REJECTED, WARNING
-  title       String
-  message     String
-  isRead      Boolean  @default(false)
+  id      String  @id @default(uuid())
+  type    String // KARMA_EARNED, DOC_APPROVED, DOC_REJECTED, WARNING
+  title   String
+  message String
+  isRead  Boolean @default(false)
 
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  createdAt   DateTime @default(now())
+  createdAt DateTime @default(now())
 
   @@index([userId, isRead])
 }
@@ -177,14 +179,41 @@ model Notification {
 // ==========================================
 
 model Report {
-  id          String   @id @default(uuid())
-  reason      String   @db.Text
-  status      String   @default("PENDING") // PENDING, RESOLVED, DISMISSED
+  id     String @id @default(uuid())
+  reason String @db.Text
+  status String @default("PENDING") // PENDING, RESOLVED, DISMISSED
 
-  reporterId  String
-  reporter    User     @relation("ReporterUser", fields: [reporterId], references: [id])
-  reportedId  String
-  reported    User     @relation("ReportedUser", fields: [reportedId], references: [id])
+  reporterId String
+  reporter   User   @relation("ReporterUser", fields: [reporterId], references: [id])
+  reportedId String
+  reported   User   @relation("ReportedUser", fields: [reportedId], references: [id])
 
-  createdAt   DateTime @default(now())
+  createdAt DateTime @default(now())
+}
+
+// ==========================================
+// 7. TIENDA Y TUTORIAS
+// ==========================================
+
+model StoreListing {
+  id          String @id @default(uuid())
+  title       String
+  description String @db.Text
+  price       Int    @default(0)
+  contactUrl  String
+  type        String // "TUTORIA" | "APUNTE"
+  status      String @default("ACTIVE") // ACTIVE, REPORTED, REJECTED
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  courseId String?
+  course   Course? @relation(fields: [courseId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([type])
+  @@index([courseId])
+  @@index([status])
 }

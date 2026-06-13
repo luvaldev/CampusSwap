@@ -140,6 +140,21 @@ export default function DashboardPage() {
     }
   }
 
+  const handleNotificationClick = async (n) => {
+    if (!n.isRead) {
+      await handleMarkAsRead(n.id)
+    }
+    setShowNotifications(false) // Close dropdown
+    
+    // Redirect logic
+    if (n.type.startsWith('COURSE_CHAT:') || n.type.startsWith('COURSE_DOC:')) {
+      const courseId = n.type.split(':')[1]
+      if (courseId) {
+        router.push(`/dashboard/curso/${encodeURIComponent(courseId)}`)
+      }
+    }
+  }
+
   const normalizeText = (text) => text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase()
 
   const filteredCourses = careerCourses.filter(c => 
@@ -164,7 +179,7 @@ export default function DashboardPage() {
           <div style={{ position: 'relative' }}>
             <button 
               onClick={() => setShowNotifications(!showNotifications)}
-              style={{ background: 'var(--surface-2)', padding: 'var(--space-3)', borderRadius: '50%', border: '1px solid var(--border-subtle)', cursor: 'pointer' }}
+              className="dashboard-action-btn"
             >
               <Bell size={18} color="var(--text-secondary)" />
               {unreadCount > 0 && (
@@ -194,8 +209,8 @@ export default function DashboardPage() {
                     notifications.map(n => (
                       <div 
                         key={n.id} 
-                        onClick={() => !n.isRead && handleMarkAsRead(n.id)}
-                        style={{ padding: 'var(--space-3) var(--space-4)', borderBottom: '1px solid var(--border-subtle)', background: n.isRead ? 'transparent' : 'var(--surface-1)', cursor: n.isRead ? 'default' : 'pointer', transition: 'background var(--duration-fast)' }}
+                        onClick={() => handleNotificationClick(n)}
+                        style={{ padding: 'var(--space-3) var(--space-4)', borderBottom: '1px solid var(--border-subtle)', background: n.isRead ? 'transparent' : 'var(--surface-1)', cursor: 'pointer', transition: 'background var(--duration-fast)' }}
                       >
                         <p style={{ fontSize: 'var(--text-sm)', fontWeight: n.isRead ? 400 : 600, marginBottom: '4px' }}>{n.title}</p>
                         <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)' }}>{n.message}</p>
@@ -208,10 +223,10 @@ export default function DashboardPage() {
           </div>
           <button 
             onClick={() => router.push('/dashboard/perfil')}
-            style={{ padding: 0, border: 'none', background: 'transparent', cursor: 'pointer' }}
+            className="dashboard-avatar-btn"
           >
             <img
-              src={session?.user?.image}
+              src={session?.user?.image || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=80&h=80&fit=crop"}
               alt={`Avatar de ${session?.user?.name || 'Estudiante'}`}
               style={{ width: 40, height: 40, borderRadius: '50%', border: '2px solid var(--brand)', objectFit: 'cover' }}
             />
@@ -516,6 +531,37 @@ export default function DashboardPage() {
           align-items: center;
           gap: var(--space-4);
           flex-wrap: wrap;
+        }
+        .dashboard-action-btn {
+          background: var(--surface-2);
+          padding: var(--space-3);
+          border-radius: 50%;
+          border: 1px solid var(--border-subtle);
+          cursor: pointer;
+          position: relative;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .dashboard-action-btn:hover {
+          background: var(--surface-3);
+          transform: translateY(-2px);
+          box-shadow: 0 4px 12px color-mix(in oklch, var(--brand) 18%, transparent);
+          border-color: var(--brand);
+        }
+        .dashboard-avatar-btn {
+          padding: 0;
+          border: none;
+          background: transparent;
+          cursor: pointer;
+          display: flex;
+          transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+          border-radius: 50%;
+        }
+        .dashboard-avatar-btn:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 4px 12px var(--brand-wash);
         }
         .dashboard-grid {
           display: grid;

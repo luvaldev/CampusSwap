@@ -78,6 +78,7 @@ export const authOptions = {
           token.id = dbUser.id
           token.role = dbUser.role
           token.careerId = dbUser.careerId // Enlaza el Onboarding en tiempo real
+          token.picture = dbUser.image || null // Enlaza la foto de perfil o la limpia
         } else {
           // 🚨 Si borraste el usuario de la DB, vaciamos el token para forzar el deslogueo
           return {}
@@ -97,6 +98,7 @@ export const authOptions = {
         session.user.role = token.role || "ESTUDIANTE"
         session.user.id = token.id
         session.user.careerId = token.careerId // El Frontend ahora verá el cambio al instante
+        session.user.image = token.picture || null // Asegurarse de limpiar la imagen si no hay
       }
       return session
     }

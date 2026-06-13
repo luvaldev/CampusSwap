@@ -245,8 +245,8 @@ export default function CursoDetalle() {
     <div className="curso-container">
       {/* Course Header */}
       <div className="curso-header">
-        <button onClick={() => router.push('/dashboard')} className="btn btn-ghost btn-sm" style={{ marginBottom: 'var(--space-4)' }}>
-          <ArrowLeft size={16} /> Volver al Dashboard
+        <button onClick={() => router.back()} className="btn btn-ghost btn-sm" style={{ marginBottom: 'var(--space-4)' }}>
+          <ArrowLeft size={16} /> Volver
         </button>
         <div className="curso-header-row">
           <div>
