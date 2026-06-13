@@ -2,6 +2,8 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "../../auth/[...nextauth]/route"
 import { NextResponse } from "next/server"
 import prisma from "../../../lib/prisma"
+import { r2 } from "../../../lib/r2"
+import sharp from "sharp"
 
 const MAX_SIZE_BYTES = 10 * 1024 * 1024 // 10MB
 
@@ -103,17 +105,59 @@ export async function POST(request) {
       }, { status: 403 })
     }
 
-    // TODO: Upload to Supabase Storage quarantine bucket
-    // For now, generate a placeholder URL
-    const fileFormat = MAGIC_NUMBERS[declaredType].ext
-    const fileUrl = `quarantine/${user.id}/${Date.now()}_${file.name}`
+    let finalBuffer = Buffer.from(arrayBuffer)
+    let finalExt = file.name.split('.').pop()
+    let finalContentType = declaredType
+    let fileFormat = MAGIC_NUMBERS[declaredType].ext
+    let finalSizeMB = parseFloat((file.size / 1024 / 1024).toFixed(2))
+
+    // Optimización con Sharp si es imagen
+    if (declaredType.startsWith('image/')) {
+      try {
+        finalBuffer = await sharp(finalBuffer)
+          .resize({ width: 1920, height: 1920, fit: 'inside', withoutEnlargement: true })
+          .webp({ quality: 80 })
+          .toBuffer()
+        
+        finalExt = 'webp'
+        finalContentType = 'image/webp'
+        fileFormat = 'WEBP'
+        finalSizeMB = parseFloat((finalBuffer.length / 1024 / 1024).toFixed(2))
+      } catch (err) {
+        console.error("Error optimizando imagen:", err)
+        // Continuar con original si falla
+      }
+    }
+
+    // Subir a Cloudflare R2
+    const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${finalExt}`
+    const filePath = `${user.id}/${fileName}`
+
+    try {
+      const { PutObjectCommand } = await import("@aws-sdk/client-s3")
+      await r2.send(
+        new PutObjectCommand({
+          Bucket: "campusswap", // El usuario debe crear este bucket
+          Key: filePath,
+          Body: finalBuffer,
+          ContentType: finalContentType,
+        })
+      )
+    } catch (error) {
+      console.error("Cloudflare R2 Error:", error)
+      return NextResponse.json({ error: "Error al guardar el archivo en la nube. Revisa las variables de Cloudflare R2." }, { status: 500 })
+    }
+
+    // El Public URL del bucket (definido en .env)
+    const publicUrlBase = process.env.R2_PUBLIC_URL?.replace(/\/$/, "") || ""
+    const fileUrl = `${publicUrlBase}/${filePath}`
 
     // Create document record in Prisma
     const document = await prisma.document.create({
       data: {
         title: title || file.name.replace(/\.[^/.]+$/, ""),
         fileUrl,
-        size: parseFloat((file.size / 1024 / 1024).toFixed(2)),
+        size: finalSizeMB,
         format: fileFormat,
         status: "QUARANTINE",
         uploaderId: user.id,
@@ -129,6 +173,7 @@ export async function POST(request) {
         status: document.status,
         format: document.format,
         size: document.size,
+        fileUrl: document.fileUrl
       }
     }, { status: 201 })
 

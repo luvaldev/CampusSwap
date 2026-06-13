@@ -10,7 +10,7 @@ export async function POST(request, { params }) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 })
     }
 
-    const { id } = params
+    const { id } = await params
     
     // Check if listing exists
     const listing = await prisma.storeListing.findUnique({

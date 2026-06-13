@@ -37,6 +37,9 @@ export async function GET(request) {
           careers: {
             some: { id: user.careerId || "" }
           }
+        },
+        votes: {
+          none: { userId: user.id }
         }
       },
       include: {
@@ -44,10 +47,58 @@ export async function GET(request) {
         course: { select: { id: true, name: true } },
       },
       orderBy: { createdAt: "desc" },
-      take: 20,
+      take: 50,
     })
 
-    return NextResponse.json({ documents })
+    // Auto-resolver documentos que ya pasaron las 2 horas
+    const now = new Date()
+    const validDocuments = []
+
+    for (const doc of documents) {
+      const hoursSinceUpload = (now - new Date(doc.createdAt)) / (1000 * 60 * 60)
+      
+      if (hoursSinceUpload >= 2) {
+        // Expiró. Resolver.
+        const totalVotes = doc.approvals + doc.rejections
+        const isApproved = totalVotes > 0 && (doc.approvals / totalVotes >= 0.70)
+        
+        await prisma.document.update({
+          where: { id: doc.id },
+          data: {
+            status: isApproved ? "APPROVED" : "REJECTED",
+            deletedAt: isApproved ? null : new Date(), // Soft delete
+          }
+        })
+        
+        if (isApproved) {
+          await prisma.user.update({
+            where: { id: doc.uploaderId },
+            data: { karma: { increment: KARMA_PER_APPROVAL } }
+          })
+          await prisma.notification.create({
+            data: {
+              type: "DOC_APPROVED",
+              title: "Apunte aprobado",
+              message: `Tu apunte superó el tiempo de evaluación con ${Math.round((doc.approvals / totalVotes)*100)}% de aprobación y ha sido publicado.`,
+              userId: doc.uploaderId,
+            }
+          })
+        } else {
+          await prisma.notification.create({
+            data: {
+              type: "DOC_REJECTED",
+              title: "Tiempo Expirado",
+              message: `Tu apunte no alcanzó la aprobación necesaria en las 2 horas límite y fue caducado.`,
+              userId: doc.uploaderId,
+            }
+          })
+        }
+      } else {
+        validDocuments.push(doc)
+      }
+    }
+
+    return NextResponse.json({ documents: validDocuments })
   } catch (error) {
     console.error("Error al cargar documentos para moderación:", error)
     return NextResponse.json({ error: "Error del servidor" }, { status: 500 })
@@ -83,7 +134,7 @@ export async function POST(request) {
 
     const document = await prisma.document.findUnique({
       where: { id: documentId },
-      select: { id: true, status: true, uploaderId: true, approvals: true, rejections: true, courseId: true }
+      select: { id: true, status: true, createdAt: true, uploaderId: true, approvals: true, rejections: true, courseId: true }
     })
 
     if (!document) {
@@ -98,17 +149,53 @@ export async function POST(request) {
       return NextResponse.json({ error: "No puedes moderar tus propios documentos" }, { status: 403 })
     }
 
-    if (action === "approve") {
-      const newApprovals = document.approvals + 1
-      const shouldPublish = newApprovals >= APPROVAL_THRESHOLD
+    if (action === "approve" || action === "reject") {
+      const isApprove = action === "approve"
+      const newApprovals = document.approvals + (isApprove ? 1 : 0)
+      const newRejections = document.rejections + (!isApprove ? 1 : 0)
+      const totalVotes = newApprovals + newRejections
 
-      // Transacción: actualizar documento + dar karma al moderador + (opcionalmente) al uploader
+      // Check if user already voted
+      const existingVote = await prisma.documentVote.findUnique({
+        where: {
+          documentId_userId: { documentId, userId: moderator.id }
+        }
+      })
+
+      if (existingVote) {
+        return NextResponse.json({ error: "Ya votaste en este documento" }, { status: 409 })
+      }
+
+      // Calculate time passed
+      const hoursSinceUpload = (new Date() - new Date(document.createdAt)) / (1000 * 60 * 60)
+      
+      // La regla ahora es: se evalúa a las 2 horas, sin importar cuántos votos
+      // Si el moderador está votando y justo pasaron las 2 horas:
+      const canResolve = hoursSinceUpload >= 2
+      const isApproved = canResolve && (newApprovals / totalVotes >= 0.70)
+      const isRejected = canResolve && !isApproved
+
+      const newStatus = isApproved ? "APPROVED" : (isRejected ? "REJECTED" : "QUARANTINE")
+
+      // Transacción: registrar voto + actualizar documento + dar karma al moderador + notificaciones si se resuelve
       await prisma.$transaction(async (tx) => {
+        // Registrar voto
+        await tx.documentVote.create({
+          data: {
+            documentId,
+            userId: moderator.id,
+            voteType: isApprove ? "APPROVE" : "REJECT"
+          }
+        })
+
+        // Actualizar documento
         await tx.document.update({
           where: { id: documentId },
           data: {
             approvals: newApprovals,
-            status: shouldPublish ? "APPROVED" : "QUARANTINE",
+            rejections: newRejections,
+            status: newStatus,
+            deletedAt: isRejected ? new Date() : null,
           }
         })
 
@@ -118,8 +205,18 @@ export async function POST(request) {
           data: { karma: { increment: KARMA_PER_MODERATION } }
         })
 
-        // Si se publica, karma para el uploader + notificación
-        if (shouldPublish) {
+        // Notificación de moderación al moderador
+        await tx.notification.create({
+          data: {
+            type: "KARMA_EARNED",
+            title: "Karma ganado",
+            message: `Has ganado +${KARMA_PER_MODERATION} Karma Points por moderar un apunte.`,
+            userId: moderator.id,
+          }
+        })
+
+        // Si se resuelve como APROBADO
+        if (isApproved) {
           await tx.user.update({
             where: { id: document.uploaderId },
             data: { karma: { increment: KARMA_PER_APPROVAL } }
@@ -129,7 +226,7 @@ export async function POST(request) {
             data: {
               type: "DOC_APPROVED",
               title: "Apunte aprobado",
-              message: `Tu apunte ha sido verificado por ${APPROVAL_THRESHOLD} compañeros y ya está disponible públicamente. ¡Ganaste +${KARMA_PER_APPROVAL} Karma!`,
+              message: `Tu apunte ha sido verificado por la comunidad (${newApprovals} votos a favor) y ya está disponible. ¡Ganaste +${KARMA_PER_APPROVAL} Karma!`,
               userId: document.uploaderId,
             }
           })
@@ -148,7 +245,6 @@ export async function POST(request) {
 
               if (enrolledUserIds.length > 0) {
                 const notificationTitle = `Hay apuntes nuevos en ${courseData.name}`
-                
                 const notifType = `COURSE_DOC:${document.courseId}`
                 
                 // Evitar spam: consultar si ya tienen esta notificación sin leer
@@ -170,7 +266,7 @@ export async function POST(request) {
                     data: usersToNotify.map(userId => ({
                       type: notifType,
                       title: notificationTitle,
-                      message: 'Se ha publicado un nuevo documento en el repositorio del curso.',
+                      message: 'Se ha publicado un nuevo documento verificado en el repositorio del curso.',
                       userId: userId
                     }))
                   })
@@ -180,52 +276,27 @@ export async function POST(request) {
           } catch (notifError) {
             console.error("Error al generar notificaciones de documentos:", notifError)
           }
-          // ---------------------------------------------------------------------
+        } 
+        // Si se resuelve como RECHAZADO
+        else if (isRejected) {
+          await tx.notification.create({
+            data: {
+              type: "DOC_REJECTED",
+              title: "Apunte rechazado",
+              message: `Tu apunte no alcanzó la aprobación de la comunidad (${Math.round((newApprovals / totalVotes)*100)}% de aprobación) y ha sido rechazado.`,
+              userId: document.uploaderId,
+            }
+          })
         }
-
-        // Notificación de moderación al moderador
-        await tx.notification.create({
-          data: {
-            type: "KARMA_EARNED",
-            title: "Karma ganado",
-            message: `Has ganado +${KARMA_PER_MODERATION} Karma Points por moderar un apunte.`,
-            userId: moderator.id,
-          }
-        })
       })
 
       return NextResponse.json({
         success: true,
-        action: "approved",
+        action: action,
         karmaEarned: KARMA_PER_MODERATION,
-        published: newApprovals >= APPROVAL_THRESHOLD,
-      })
-
-    } else {
-      // Rechazar
-      await prisma.$transaction(async (tx) => {
-        await tx.document.update({
-          where: { id: documentId },
-          data: {
-            rejections: { increment: 1 },
-            status: "REJECTED",
-            deletedAt: new Date(), // Soft delete
-          }
-        })
-
-        await tx.notification.create({
-          data: {
-            type: "DOC_REJECTED",
-            title: "Apunte rechazado",
-            message: "Tu apunte ha sido rechazado por un moderador. Verifica que el contenido corresponda al ramo y vuelve a intentarlo.",
-            userId: document.uploaderId,
-          }
-        })
-      })
-
-      return NextResponse.json({
-        success: true,
-        action: "rejected",
+        published: isApproved,
+        rejected: isRejected,
+        pending: newStatus === "QUARANTINE"
       })
     }
 

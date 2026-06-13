@@ -10,7 +10,7 @@ export async function DELETE(request, { params }) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 })
     }
 
-    const { id } = params
+    const { id } = await params
     const listing = await prisma.storeListing.findUnique({
       where: { id }
     })

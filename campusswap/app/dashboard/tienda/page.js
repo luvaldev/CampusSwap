@@ -21,6 +21,7 @@ export default function TiendaPage() {
   
   // Modal state
   const [showModal, setShowModal] = useState(false)
+  const [confirmModal, setConfirmModal] = useState({ show: false, action: null, id: null, title: '', desc: '' })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [formData, setFormData] = useState({
     title: '',
@@ -96,32 +97,52 @@ export default function TiendaPage() {
     }
   }
 
-  const handleDelete = async (id) => {
-    if (!confirm("¿Seguro que deseas eliminar tu publicación?")) return
-    try {
-      const res = await fetch(`/api/store/${id}`, { method: 'DELETE' })
-      if (res.ok) {
-        fetchListings(filterType)
-      } else {
-        alert("Error al eliminar")
-      }
-    } catch (err) {
-      console.error(err)
-    }
+  const handleDelete = (id) => {
+    setConfirmModal({
+      show: true,
+      action: 'delete',
+      id,
+      title: '¿Eliminar publicación?',
+      desc: 'Esta acción no se puede deshacer. Tu publicación desaparecerá de la tienda.'
+    })
   }
 
-  const handleReport = async (id) => {
-    if (!confirm("¿Deseas reportar esta publicación para que sea revisada por los moderadores?")) return
-    try {
-      const res = await fetch(`/api/store/${id}/report`, { method: 'POST' })
-      if (res.ok) {
-        alert("Publicación reportada. Ya no será visible en la tienda hasta que un moderador la revise.")
-        fetchListings(filterType)
-      } else {
-        alert("Error al reportar")
+  const handleReport = (id) => {
+    setConfirmModal({
+      show: true,
+      action: 'report',
+      id,
+      title: '¿Reportar publicación?',
+      desc: 'Si crees que esta publicación infringe nuestras normas, envíala a moderación. Será ocultada inmediatamente de la tienda pública hasta que la revisemos.'
+    })
+  }
+
+  const executeConfirmAction = async () => {
+    const { action, id } = confirmModal
+    setConfirmModal({ ...confirmModal, show: false }) // cerramos modal
+    
+    if (action === 'delete') {
+      try {
+        const res = await fetch(`/api/store/${id}`, { method: 'DELETE' })
+        if (res.ok) {
+          fetchListings(filterType)
+        } else {
+          alert("Error al eliminar la publicación")
+        }
+      } catch (err) {
+        console.error(err)
       }
-    } catch (err) {
-      console.error(err)
+    } else if (action === 'report') {
+      try {
+        const res = await fetch(`/api/store/${id}/report`, { method: 'POST' })
+        if (res.ok) {
+          fetchListings(filterType)
+        } else {
+          alert("Error al reportar la publicación")
+        }
+      } catch (err) {
+        console.error(err)
+      }
     }
   }
 
@@ -363,6 +384,26 @@ export default function TiendaPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Confirm Action Modal */}
+      {confirmModal.show && (
+        <div className="modal-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 'var(--space-4)' }}>
+          <div className="card" style={{ width: '100%', maxWidth: 400, padding: 'var(--space-6)', position: 'relative' }}>
+            <h2 style={{ fontSize: 'var(--text-lg)', fontWeight: 800, marginBottom: 'var(--space-3)' }}>{confirmModal.title}</h2>
+            <p style={{ color: 'var(--text-secondary)', fontSize: 'var(--text-sm)', marginBottom: 'var(--space-5)', lineHeight: 1.5 }}>
+              {confirmModal.desc}
+            </p>
+            <div style={{ display: 'flex', gap: 'var(--space-3)' }}>
+              <button className="btn btn-secondary" style={{ flex: 1 }} onClick={() => setConfirmModal({ ...confirmModal, show: false })}>
+                Cancelar
+              </button>
+              <button className={`btn ${confirmModal.action === 'delete' ? 'btn-danger' : 'btn-primary'}`} style={{ flex: 1 }} onClick={executeConfirmAction}>
+                Confirmar
+              </button>
+            </div>
           </div>
         </div>
       )}

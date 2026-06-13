@@ -307,9 +307,22 @@ export default function CursoDetalle() {
                     ) : (
                       <span className="badge badge-warning"><WarningCircle size={12} weight="fill" /> Cuarentena</span>
                     )}
-                    {file.status === 'APPROVED' && (
-                      <button className="btn btn-secondary btn-sm" title="Descargar">
-                        <DownloadSimple size={16} />
+                    {file.status === 'APPROVED' ? (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+                        {file.fileUrl && (
+                          <a href={file.fileUrl} target="_blank" rel="noopener noreferrer" className="btn btn-secondary btn-sm" title="Ver archivo">
+                            Ver
+                          </a>
+                        )}
+                        {file.fileUrl && (
+                          <a href={file.fileUrl} download target="_blank" rel="noopener noreferrer" className="btn btn-primary btn-sm" title="Descargar archivo">
+                            <DownloadSimple size={16} />
+                          </a>
+                        )}
+                      </div>
+                    ) : (
+                      <button onClick={() => router.push('/dashboard/moderacion')} className="btn btn-secondary btn-sm" title="Ir a moderar">
+                        Moderar
                       </button>
                     )}
                   </div>
