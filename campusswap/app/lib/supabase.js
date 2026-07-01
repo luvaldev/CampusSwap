@@ -7,4 +7,7 @@ if (!supabaseUrl || !supabaseKey) {
   console.warn("Faltan las variables de entorno de Supabase en .env")
 }
 
-export const supabase = createClient(supabaseUrl || "", supabaseKey || "")
+export const supabase = (supabaseUrl && supabaseKey)
+  ? createClient(supabaseUrl, supabaseKey)
+  : null
+

@@ -129,6 +129,12 @@ export async function POST(request) {
       }
     }
 
+    if (!supabase) {
+      return NextResponse.json({ 
+        error: "Servicio de almacenamiento no configurado. Revisa las variables de entorno de Supabase." 
+      }, { status: 500 })
+    }
+
     // Subir a Supabase Storage
     const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${finalExt}`
     const filePath = `${user.id}/${fileName}`
