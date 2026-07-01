@@ -2,7 +2,7 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "../../auth/[...nextauth]/route"
 import { NextResponse } from "next/server"
 import prisma from "../../../lib/prisma"
-import { r2 } from "../../../lib/r2"
+import { supabase } from "../../../lib/supabase"
 import sharp from "sharp"
 
 const MAX_SIZE_BYTES = 10 * 1024 * 1024 // 10MB
@@ -129,28 +129,34 @@ export async function POST(request) {
       }
     }
 
-    // Subir a Cloudflare R2
+    // Subir a Supabase Storage
     const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${finalExt}`
     const filePath = `${user.id}/${fileName}`
 
     try {
-      const { PutObjectCommand } = await import("@aws-sdk/client-s3")
-      await r2.send(
-        new PutObjectCommand({
-          Bucket: "campusswap", // El usuario debe crear este bucket
-          Key: filePath,
-          Body: finalBuffer,
-          ContentType: finalContentType,
+      const { data: uploadData, error: uploadError } = await supabase
+        .storage
+        .from('campusswap')
+        .upload(filePath, finalBuffer, {
+          contentType: finalContentType,
+          upsert: true
         })
-      )
+
+      if (uploadError) {
+        throw uploadError
+      }
     } catch (error) {
-      console.error("Cloudflare R2 Error:", error)
-      return NextResponse.json({ error: "Error al guardar el archivo en la nube. Revisa las variables de Cloudflare R2." }, { status: 500 })
+      console.error("Supabase Storage Error:", error)
+      return NextResponse.json({ error: "Error al guardar el archivo en la nube. Revisa las variables de Supabase." }, { status: 500 })
     }
 
-    // El Public URL del bucket (definido en .env)
-    const publicUrlBase = process.env.R2_PUBLIC_URL?.replace(/\/$/, "") || ""
-    const fileUrl = `${publicUrlBase}/${filePath}`
+    // Obtener URL pública de Supabase Storage
+    const { data: { publicUrl } } = supabase
+      .storage
+      .from('campusswap')
+      .getPublicUrl(filePath)
+    
+    const fileUrl = publicUrl
 
     // Create document record in Prisma
     const document = await prisma.document.create({
