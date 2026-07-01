@@ -45,7 +45,7 @@ export default function Explorar() {
   }
 
   const filteredFacultades = FACULTADES.filter(f => f.nombre.toLowerCase().includes(searchTerm.toLowerCase()))
-  const carrerasDeFacultad = selectedFacultad?.id === 'fic' ? carrerasDB : []
+  const carrerasDeFacultad = selectedFacultad ? carrerasDB.filter(c => c.facultyId === selectedFacultad.id) : []
   const filteredCarreras = carrerasDeFacultad.filter(c => c.nombre.toLowerCase().includes(searchTerm.toLowerCase()))
   const cursosDeCarrera = selectedCarrera ? cursosDB.filter(curso => curso.carreras.includes(selectedCarrera.id)) : []
   const filteredCursos = cursosDeCarrera.filter(c => c.nombre.toLowerCase().includes(searchTerm.toLowerCase()) || c.id.toLowerCase().includes(searchTerm.toLowerCase()))

@@ -18,9 +18,64 @@ const FACULTADES = [
 ];
 
 const carrerasDB = [
-  { id: "civ-obras", nombre: "Ingeniería Civil en Obras Civiles", tag: "CIV-OC" },
-  { id: "civ-ind", nombre: "Ingeniería Civil Industrial", tag: "CIV-IND" },
-  { id: "civ-inf", nombre: "Ingeniería Civil Informática", tag: "CIV-INF" }
+  // FAE
+  { id: "fae-adm-pub", nombre: "Administración Pública", tag: "ADM-PUB", facultyId: "fae" },
+  { id: "fae-bach-adm", nombre: "Bachillerato en Administración y Economía", tag: "BACH-ADM", facultyId: "fae" },
+  { id: "fae-cont-aud", nombre: "Contador Auditor - Contador Público", tag: "CONT-AUD", facultyId: "fae" },
+  { id: "fae-ing-com", nombre: "Ingeniería Comercial", tag: "ING-COM", facultyId: "fae" },
+  { id: "fae-ing-cge", nombre: "Ingeniería en Control de Gestión", tag: "ING-CGE", facultyId: "fae" },
+  
+  // FCS
+  { id: "fcs-adm-pub", nombre: "Administración Pública", tag: "ADM-PUB", facultyId: "fcs" },
+  { id: "fcs-ant", nombre: "Antropología", tag: "ANT", facultyId: "fcs" },
+  { id: "fcs-bach-cs", nombre: "Bachillerato en Ciencias Sociales y Humanidades", tag: "BACH-CS", facultyId: "fcs" },
+  { id: "fcs-cpol", nombre: "Ciencia Política", tag: "CPOL", facultyId: "fcs" },
+  { id: "fcs-hist", nombre: "Licenciatura en Historia", tag: "HIST", facultyId: "fcs" },
+  { id: "fcs-soc", nombre: "Sociología", tag: "SOC", facultyId: "fcs" },
+
+  // FAD
+  { id: "fad-arq", nombre: "Arquitectura", tag: "ARQ", facultyId: "fad" },
+  { id: "fad-art", nombre: "Artes Visuales", tag: "ART", facultyId: "fad" },
+  { id: "fad-dis", nombre: "Diseño", tag: "DIS", facultyId: "fad" },
+
+  // FCL
+  { id: "fcl-cine-anim", nombre: "Cine de Animación", tag: "CINE-ANIM", facultyId: "fcl" },
+  { id: "fcl-cine-real", nombre: "Cine y Realización Audiovisual", tag: "CINE-REAL", facultyId: "fcl" },
+  { id: "fcl-lit", nombre: "Literatura Creativa", tag: "LIT", facultyId: "fcl" },
+  { id: "fcl-per", nombre: "Periodismo", tag: "PER", facultyId: "fcl" },
+  { id: "fcl-pub", nombre: "Publicidad", tag: "PUB", facultyId: "fcl" },
+
+  // FDE
+  { id: "fde-der", nombre: "Derecho", tag: "DER", facultyId: "fde" },
+
+  // FSO
+  { id: "fso-enf", nombre: "Enfermería", tag: "ENF", facultyId: "fso" },
+  { id: "fso-kin", nombre: "Kinesiología", tag: "KIN", facultyId: "fso" },
+  { id: "fso-obs", nombre: "Obstetricia y Neonatología", tag: "OBS", facultyId: "fso" },
+  { id: "fso-odo", nombre: "Odontología", tag: "ODO", facultyId: "fso" },
+  { id: "fso-tec-med", nombre: "Tecnología Médica", tag: "TEC-MED", facultyId: "fso" },
+
+  // FIC
+  { id: "fic-civ-datos", nombre: "Ingeniería Civil en Ciencia de Datos e Inteligencia Artificial", tag: "CIV-DATOS", facultyId: "fic" },
+  { id: "civ-inf", nombre: "Ingeniería Civil en Informática y Telecomunicaciones", tag: "CIV-INF", facultyId: "fic" },
+  { id: "civ-obras", nombre: "Ingeniería Civil en Obras Civiles", tag: "CIV-OC", facultyId: "fic" },
+  { id: "civ-ind", nombre: "Ingeniería Civil Industrial", tag: "CIV-IND", facultyId: "fic" },
+  { id: "fic-civ-plan", nombre: "Ingeniería Civil Plan Común", tag: "CIV-PLAN", facultyId: "fic" },
+
+  // FME
+  { id: "fme-med", nombre: "Medicina", tag: "MED", facultyId: "fme" },
+
+  // FED
+  { id: "fed-ped-dif", nombre: "Pedagogía en Educación Diferencial con mención en Desarrollo Cognitivo", tag: "PED-DIF", facultyId: "fed" },
+  { id: "fed-ped-bas", nombre: "Pedagogía en Educación General Básica", tag: "PED-BAS", facultyId: "fed" },
+  { id: "fed-ped-parv", nombre: "Pedagogía en Educación Parvularia", tag: "PED-PARV", facultyId: "fed" },
+  { id: "fed-ped-hist", nombre: "Pedagogía en Historia y Ciencias Sociales", tag: "PED-HIST", facultyId: "fed" },
+  { id: "fed-ped-ing", nombre: "Pedagogía en Inglés", tag: "PED-ING", facultyId: "fed" },
+  { id: "fed-ped-leng", nombre: "Pedagogía en Lengua Castellana y Comunicación", tag: "PED-LENG", facultyId: "fed" },
+  { id: "fed-ped-mat", nombre: "Pedagogía Media en Matemática", tag: "PED-MAT", facultyId: "fed" },
+
+  // FPS
+  { id: "fps-psi", nombre: "Psicología", tag: "PSI", facultyId: "fps" }
 ];
 
 const cursosDB = [
@@ -121,16 +176,20 @@ async function main() {
   }
   console.log('Facultades creadas')
 
-  // B. Crear las Carreras (Asociadas a la FIC)
+  // B. Crear las Carreras
   for (const carrera of carrerasDB) {
     await prisma.career.upsert({
       where: { id: carrera.id },
-      update: {},
+      update: {
+        name: carrera.nombre,
+        tag: carrera.tag,
+        facultyId: carrera.facultyId
+      },
       create: { 
         id: carrera.id, 
         name: carrera.nombre, 
         tag: carrera.tag, 
-        facultyId: 'fic' 
+        facultyId: carrera.facultyId 
       },
     })
   }
